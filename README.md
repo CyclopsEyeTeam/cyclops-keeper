@@ -26,6 +26,16 @@ awareness, or task success, and it never reads your prompts, tool arguments or o
 From a clone of this repository:
 
 ```bash
+./install.sh
+```
+
+It checks for Codex and Python 3.10+, then runs Codex's own plugin commands from this folder. It is safe to run again;
+it refreshes Codex's installed copy. `./uninstall.sh` removes the plugin and leaves this folder, and the activity Keeper
+recorded, alone.
+
+The same by hand:
+
+```bash
 codex plugin marketplace add /path/to/cyclops-keeper
 codex plugin add cyclops-keeper@cyclops-keeper
 ```
@@ -125,6 +135,7 @@ Tests cover event privacy and correlation, return ordering, bounds, stale poses,
 | `plugins/cyclops-keeper/scripts/` | `hook.py` and `activity.py` (the observer), `terminal.py` and `terminal_art.py` (the terminal compositions and woven subcell drawing), `view.py` (the browser panel server), `generate-palette.mjs` (rebuilds `palette.json`). |
 | `plugins/cyclops-keeper/assets/` | The browser panel, Keeper's SVG mark, palette, colour engine and sound. |
 | `keeper` | The launcher. |
+| `install.sh`, `uninstall.sh` | Install or refresh, and remove, with Codex's own plugin commands. |
 | `tools/keeper-fixture.py` | Disposable visual fixtures. |
 | `tests/` | Python and Node checks. |
 

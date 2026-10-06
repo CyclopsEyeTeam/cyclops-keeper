@@ -1,6 +1,6 @@
 {
   "name": "cyclops-keeper",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Cyclops Keeper: GPT’s quiet, single-eyed working presence.",
   "hooks": "./hooks/hooks.json",
   "interface": {

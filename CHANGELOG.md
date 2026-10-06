@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.2
+
+- `install.sh` and `uninstall.sh`: one-step install, refresh and removal with Codex's own plugin commands.
+
 ## 0.3.1
 
 - A woven Unicode terminal identity: smooth subcell curves, sea-glass membrane, lavender crown and a pale-gold aperture, with layered truecolour or 256-colour output.
