@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="keeper-fixture" content="">
+  <title>Cyclops Keeper · GPT</title>
+  <link rel="icon" type="image/svg+xml" href="/keeper.svg">
+  <link rel="stylesheet" href="/keeper.css">
+</head>
+<body>
+  <main id="presence" aria-label="Cyclops Keeper, GPT’s working presence">
+    <canvas id="keeper" role="img" aria-label="Cyclops Keeper: awaiting a session signal">
+      Cyclops Keeper requires a browser with Canvas 2D support.
+    </canvas>
+  </main>
+  <footer>
+    <span class="signature">CYCLOPS KEEPER <span class="provider">/ GPT</span></span>
+    <span id="status" role="status" aria-live="polite">No signal yet</span>
+    <span id="scope">Local session</span>
+    <button id="sound-mode" type="button" aria-pressed="false">Sound: Off</button>
+  </footer>
+  <script type="module" src="/keeper.js"></script>
+</body>
+</html>

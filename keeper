@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+face_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+if [[ "${1:-}" == "--browser" ]]; then
+  shift
+  exec python3 "$face_root/plugins/cyclops-keeper/scripts/view.py" "$@"
+fi
+exec python3 "$face_root/plugins/cyclops-keeper/scripts/terminal.py" "$@"

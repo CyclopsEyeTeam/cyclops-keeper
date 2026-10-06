@@ -1,0 +1,449 @@
+{
+  "engine": "DrawPlayer Colour Language v1",
+  "recipes": {
+    "idle": {
+      "version": 1,
+      "id": "CODEX_FACE_IDLE",
+      "seeds": [
+        {
+          "colour": {
+            "version": 1,
+            "id": "SEED",
+            "rgb": {
+              "r": 0.42,
+              "g": 0.78,
+              "b": 0.57
+            },
+            "meta": {}
+          },
+          "weight": 0.75
+        },
+        {
+          "colour": {
+            "version": 1,
+            "id": "SEED",
+            "rgb": {
+              "r": 0.78,
+              "g": 0.83,
+              "b": 0.8
+            },
+            "meta": {}
+          },
+          "weight": 0.25
+        }
+      ],
+      "mix": {
+        "method": "LINEAR_LIGHT"
+      },
+      "transforms": {
+        "brightness": 1,
+        "saturation": 0.85,
+        "hueShift": 0,
+        "temperature": 0,
+        "tint": 0,
+        "opacity": 1,
+        "emission": 0
+      },
+      "mapping": {
+        "mode": "WHOLE",
+        "fractions": []
+      },
+      "meta": {}
+    },
+    "working": {
+      "version": 1,
+      "id": "CODEX_FACE_WORKING",
+      "seeds": [
+        {
+          "colour": {
+            "version": 1,
+            "id": "SEED",
+            "rgb": {
+              "r": 0.88,
+              "g": 0.69,
+              "b": 0.32
+            },
+            "meta": {}
+          },
+          "weight": 0.75
+        },
+        {
+          "colour": {
+            "version": 1,
+            "id": "SEED",
+            "rgb": {
+              "r": 0.78,
+              "g": 0.83,
+              "b": 0.8
+            },
+            "meta": {}
+          },
+          "weight": 0.25
+        }
+      ],
+      "mix": {
+        "method": "LINEAR_LIGHT"
+      },
+      "transforms": {
+        "brightness": 1,
+        "saturation": 0.85,
+        "hueShift": 0,
+        "temperature": 0,
+        "tint": 0,
+        "opacity": 1,
+        "emission": 0
+      },
+      "mapping": {
+        "mode": "WHOLE",
+        "fractions": []
+      },
+      "meta": {}
+    },
+    "tool": {
+      "version": 1,
+      "id": "CODEX_FACE_TOOL",
+      "seeds": [
+        {
+          "colour": {
+            "version": 1,
+            "id": "SEED",
+            "rgb": {
+              "r": 0.35,
+              "g": 0.76,
+              "b": 0.86
+            },
+            "meta": {}
+          },
+          "weight": 0.75
+        },
+        {
+          "colour": {
+            "version": 1,
+            "id": "SEED",
+            "rgb": {
+              "r": 0.78,
+              "g": 0.83,
+              "b": 0.8
+            },
+            "meta": {}
+          },
+          "weight": 0.25
+        }
+      ],
+      "mix": {
+        "method": "LINEAR_LIGHT"
+      },
+      "transforms": {
+        "brightness": 1,
+        "saturation": 0.85,
+        "hueShift": 0,
+        "temperature": 0,
+        "tint": 0,
+        "opacity": 1,
+        "emission": 0
+      },
+      "mapping": {
+        "mode": "WHOLE",
+        "fractions": []
+      },
+      "meta": {}
+    },
+    "waiting": {
+      "version": 1,
+      "id": "CODEX_FACE_WAITING",
+      "seeds": [
+        {
+          "colour": {
+            "version": 1,
+            "id": "SEED",
+            "rgb": {
+              "r": 0.72,
+              "g": 0.55,
+              "b": 0.88
+            },
+            "meta": {}
+          },
+          "weight": 0.75
+        },
+        {
+          "colour": {
+            "version": 1,
+            "id": "SEED",
+            "rgb": {
+              "r": 0.78,
+              "g": 0.83,
+              "b": 0.8
+            },
+            "meta": {}
+          },
+          "weight": 0.25
+        }
+      ],
+      "mix": {
+        "method": "LINEAR_LIGHT"
+      },
+      "transforms": {
+        "brightness": 1,
+        "saturation": 0.85,
+        "hueShift": 0,
+        "temperature": 0,
+        "tint": 0,
+        "opacity": 1,
+        "emission": 0
+      },
+      "mapping": {
+        "mode": "WHOLE",
+        "fractions": []
+      },
+      "meta": {}
+    },
+    "stopped": {
+      "version": 1,
+      "id": "CODEX_FACE_STOPPED",
+      "seeds": [
+        {
+          "colour": {
+            "version": 1,
+            "id": "SEED",
+            "rgb": {
+              "r": 0.59,
+              "g": 0.83,
+              "b": 0.63
+            },
+            "meta": {}
+          },
+          "weight": 0.75
+        },
+        {
+          "colour": {
+            "version": 1,
+            "id": "SEED",
+            "rgb": {
+              "r": 0.78,
+              "g": 0.83,
+              "b": 0.8
+            },
+            "meta": {}
+          },
+          "weight": 0.25
+        }
+      ],
+      "mix": {
+        "method": "LINEAR_LIGHT"
+      },
+      "transforms": {
+        "brightness": 1,
+        "saturation": 0.85,
+        "hueShift": 0,
+        "temperature": 0,
+        "tint": 0,
+        "opacity": 1,
+        "emission": 0
+      },
+      "mapping": {
+        "mode": "WHOLE",
+        "fractions": []
+      },
+      "meta": {}
+    },
+    "interrupted": {
+      "version": 1,
+      "id": "CODEX_FACE_INTERRUPTED",
+      "seeds": [
+        {
+          "colour": {
+            "version": 1,
+            "id": "SEED",
+            "rgb": {
+              "r": 0.86,
+              "g": 0.56,
+              "b": 0.37
+            },
+            "meta": {}
+          },
+          "weight": 0.75
+        },
+        {
+          "colour": {
+            "version": 1,
+            "id": "SEED",
+            "rgb": {
+              "r": 0.78,
+              "g": 0.83,
+              "b": 0.8
+            },
+            "meta": {}
+          },
+          "weight": 0.25
+        }
+      ],
+      "mix": {
+        "method": "LINEAR_LIGHT"
+      },
+      "transforms": {
+        "brightness": 1,
+        "saturation": 0.85,
+        "hueShift": 0,
+        "temperature": 0,
+        "tint": 0,
+        "opacity": 1,
+        "emission": 0
+      },
+      "mapping": {
+        "mode": "WHOLE",
+        "fractions": []
+      },
+      "meta": {}
+    },
+    "ended": {
+      "version": 1,
+      "id": "CODEX_FACE_ENDED",
+      "seeds": [
+        {
+          "colour": {
+            "version": 1,
+            "id": "SEED",
+            "rgb": {
+              "r": 0.43,
+              "g": 0.49,
+              "b": 0.46
+            },
+            "meta": {}
+          },
+          "weight": 0.75
+        },
+        {
+          "colour": {
+            "version": 1,
+            "id": "SEED",
+            "rgb": {
+              "r": 0.78,
+              "g": 0.83,
+              "b": 0.8
+            },
+            "meta": {}
+          },
+          "weight": 0.25
+        }
+      ],
+      "mix": {
+        "method": "LINEAR_LIGHT"
+      },
+      "transforms": {
+        "brightness": 1,
+        "saturation": 0.85,
+        "hueShift": 0,
+        "temperature": 0,
+        "tint": 0,
+        "opacity": 1,
+        "emission": 0
+      },
+      "mapping": {
+        "mode": "WHOLE",
+        "fractions": []
+      },
+      "meta": {}
+    },
+    "unknown": {
+      "version": 1,
+      "id": "CODEX_FACE_UNKNOWN",
+      "seeds": [
+        {
+          "colour": {
+            "version": 1,
+            "id": "SEED",
+            "rgb": {
+              "r": 0.56,
+              "g": 0.61,
+              "b": 0.57
+            },
+            "meta": {}
+          },
+          "weight": 0.75
+        },
+        {
+          "colour": {
+            "version": 1,
+            "id": "SEED",
+            "rgb": {
+              "r": 0.78,
+              "g": 0.83,
+              "b": 0.8
+            },
+            "meta": {}
+          },
+          "weight": 0.25
+        }
+      ],
+      "mix": {
+        "method": "LINEAR_LIGHT"
+      },
+      "transforms": {
+        "brightness": 1,
+        "saturation": 0.85,
+        "hueShift": 0,
+        "temperature": 0,
+        "tint": 0,
+        "opacity": 1,
+        "emission": 0
+      },
+      "mapping": {
+        "mode": "WHOLE",
+        "fractions": []
+      },
+      "meta": {}
+    }
+  },
+  "colours": {
+    "idle": [
+      145,
+      200,
+      166
+    ],
+    "working": [
+      214,
+      186,
+      137
+    ],
+    "tool": [
+      137,
+      196,
+      211
+    ],
+    "branching": [
+      164,
+      178,
+      220
+    ],
+    "compacting": [
+      185,
+      164,
+      218
+    ],
+    "waiting": [
+      185,
+      163,
+      212
+    ],
+    "stopped": [
+      169,
+      210,
+      177
+    ],
+    "interrupted": [
+      208,
+      165,
+      139
+    ],
+    "ended": [
+      141,
+      152,
+      146
+    ],
+    "unknown": [
+      161,
+      171,
+      164
+    ]
+  }
+}
