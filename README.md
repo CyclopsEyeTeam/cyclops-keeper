@@ -15,6 +15,20 @@ awareness, or task success, and it never reads your prompts, tool arguments or o
 
 ![Cyclops Keeper's terminal compositions: Balanced and Focus](media/keeper-terminal.png)
 
+## The Cyclops family
+
+![Cyclops Link: Spark, Keeper and Prism in one folder, each in her own look, with handoff threads](media/cyclops-link.png)
+
+Three presences, one for each agent, each drawn only from what her own host really reports:
+
+- [Cyclops Spark](https://github.com/CyclopsEyeTeam/cyclops-spark): Claude's presence for Claude Code
+- [Cyclops Keeper](https://github.com/CyclopsEyeTeam/cyclops-keeper): GPT's presence for Codex (this one)
+- [Cyclops Prism](https://github.com/CyclopsEyeTeam/cyclops-prism): Gemini's presence for Antigravity
+
+With [Cyclops Link](#cyclops-link) on, they notice each other when they work in the same folder: each one shows the
+others in the look they exported themselves, and a thread runs between two of them while one is calling the other.
+Link is off until you turn it on, separately for each.
+
 ## Requirements
 
 - Codex with plugin support (`codex plugin`), on macOS or Linux.
@@ -68,8 +82,8 @@ The terminal uses 2 × 4 Unicode subcells to draw smooth curves. Sea-glass membr
 
 ## Cyclops Link
 
-Keeper has two siblings: **Spark**, Claude's presence in Claude Code (Cyclops Spark), and **Prism**, Gemini's presence in
-Antigravity (Cyclops Prism). With Cyclops Link on, the three notice each other when they work in the same folder on the
+Keeper has two siblings: **Spark**, Claude's presence in Claude Code ([Cyclops Spark](https://github.com/CyclopsEyeTeam/cyclops-spark)), and **Prism**, Gemini's presence in
+Antigravity ([Cyclops Prism](https://github.com/CyclopsEyeTeam/cyclops-prism)). With Cyclops Link on, the three notice each other when they work in the same folder on the
 same machine.
 
 ```bash
@@ -91,7 +105,6 @@ Link is off until you turn it on; `KEEPER_LINK=1` or `0` overrides the switch, a
 him on. While Codex runs, a small worker keeps his record fresh; when Codex closes it says so. The protocol is
 [docs/CYCLOPS-LINK-V1.md](docs/CYCLOPS-LINK-V1.md).
 
-![Cyclops Link: Spark, Keeper and Prism in one folder, each in her own look, with handoff threads](media/cyclops-link.png)
 
 The browser panel prints a loopback URL. Without a session pin it follows the latest local session;
 `--session FULL_SESSION_HASH` pins one session and never falls back to another. `/?calm=1` gives the lower-contrast,
