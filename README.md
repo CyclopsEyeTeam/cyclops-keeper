@@ -18,7 +18,7 @@ awareness, or task success, and it never reads your prompts, tool arguments or o
 
 - Codex with plugin support (`codex plugin`), on macOS or Linux.
 - Python 3.10 or later. No third-party packages.
-- A terminal with Unicode and colour for the full look; `--ascii` and `--no-colour` fall back cleanly.
+- A terminal with Unicode Braille and colour for the full woven look; `--ascii` and `--no-colour` fall back cleanly.
 - For the browser panel, any current browser with Canvas 2D.
 
 ## Install
@@ -52,6 +52,8 @@ cd /path/to/cyclops-keeper
 Both terminal modes use the alternate screen; `q`, Escape or Ctrl-C restores your terminal exactly. Focus changes only
 the presentation. Keys `c` and `r` toggle Calm and Reduced Motion; `--calm` and `--reduced-motion` set them at startup.
 `--ascii`, `--no-colour`, `NO_COLOR=1`, `--once` and `--metrics` are also available.
+
+The terminal uses 2 × 4 Unicode subcells to draw smooth curves. Sea-glass membrane threads, a lavender crown, and a pale-gold eye stay distinct in truecolour and 256-colour terminals. No terminal image protocol or third-party Python package is needed. `--once` always emits plain text.
 
 The browser panel prints a loopback URL. Without a session pin it follows the latest local session;
 `--session FULL_SESSION_HASH` pins one session and never falls back to another. `/?calm=1` gives the lower-contrast,
@@ -94,7 +96,7 @@ python3 tools/keeper-fixture.py clear --fixture review
 
 Keeper never reads prompt text, tool inputs or results, raw call IDs, model identity, or task progress. Returns establish only that a matching host invocation returned. Interruptions and completion do not clear unresolved calls; only their own `PostToolUse` or `SubagentStop` does. A later SessionStart with source resume reopens a stopped, interrupted, or ended observation to Session ready while keeping unresolved relations until their matching returns. Receiving lasts 1.4 seconds after prompt receipt. Approval can be automatic review. Dense activity fans into separate bounded routes, and browser history is capped at 32 transitions. Calm lowers contrast and rhythm; Reduced Motion removes decorative motion while keeping event-driven geometry immediate.
 
-Keeper's aperture, open crown, asymmetric membrane and loose filaments are the identity across the browser panel and the terminal compositions. Both draw it in code; this release ships no raster artwork. Ambient breath and glints are cosmetic only; the pointer does not steer the eye and no random work states are invented. Canvas 2D draws browser tethers and satellites. Unicode and colour have ASCII and no-colour fallbacks in the terminal.
+Keeper's aperture, open crown, asymmetric membrane and loose filaments are the identity across the browser panel and the terminal compositions. Both draw it in code; this release ships no raster character artwork. Ambient breath and glints are cosmetic only; the pointer does not steer the eye and no random work states are invented. Canvas 2D draws browser tethers and satellites. Unicode and colour have ASCII and no-colour fallbacks in the terminal.
 
 ## Privacy
 
@@ -112,13 +114,15 @@ node tests/test_presence.mjs
 node tests/test_sound.mjs
 ```
 
+Tests cover event privacy and correlation, return ordering, bounds, stale poses, colour layers, keyboard controls and terminal restoration. The browser is also reviewed with disposable fixtures; see [RELEASE-CHECKS.txt](RELEASE-CHECKS.txt) for the release checks and their limits. Very dense scenes can take longer to redraw: visual richness does not represent a progress or presentation-FPS measurement.
+
 ## Repository layout
 
 | Path | What it is |
 | --- | --- |
 | `.agents/plugins/marketplace.json` | The one-plugin Codex marketplace, so the repository can be added with `codex plugin marketplace add`. |
 | `plugins/cyclops-keeper/hooks/` | The observational hook declarations. |
-| `plugins/cyclops-keeper/scripts/` | `hook.py` and `activity.py` (the observer), `terminal.py` (the terminal compositions), `view.py` (the browser panel server), `generate-palette.mjs` (rebuilds `palette.json`). |
+| `plugins/cyclops-keeper/scripts/` | `hook.py` and `activity.py` (the observer), `terminal.py` and `terminal_art.py` (the terminal compositions and woven subcell drawing), `view.py` (the browser panel server), `generate-palette.mjs` (rebuilds `palette.json`). |
 | `plugins/cyclops-keeper/assets/` | The browser panel, Keeper's SVG mark, palette, colour engine and sound. |
 | `keeper` | The launcher. |
 | `tools/keeper-fixture.py` | Disposable visual fixtures. |

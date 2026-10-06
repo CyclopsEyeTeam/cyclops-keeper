@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.1
+
+- A woven Unicode terminal identity: smooth subcell curves, sea-glass membrane, lavender crown and a pale-gold aperture, with layered truecolour or 256-colour output.
+- Matching woven browser form, with event gestures aligned to their tethers.
+- Stale observations freeze in both terminal fallbacks; missing evidence keeps a hollow aperture, including the tiny browser view.
+- Independently routed calls, matching late returns after session end, and a visibly severed body filament on interruption.
+- Fix the stopped-turn browser crash, tiny-view relations and the launcher executable permission.
+- Refreshed fixture previews and focused terminal regression checks.
+
 ## 0.3.0 (first public release)
 
 - Cyclops Keeper as a standalone Codex plugin: the observational hooks, the single-eyed terminal companion (Balanced and

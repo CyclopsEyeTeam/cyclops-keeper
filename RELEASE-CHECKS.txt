@@ -1,0 +1,46 @@
+Cyclops Keeper 0.3.1 release checks - 2026-10-06
+
+Environment: Linux, Python 3.12, Node.js, Codex in-app browser.
+Python: 51 tests passed in the candidate and extracted release package.
+Node: 10 presence checks and 2 sound checks passed in both trees.
+JavaScript syntax check: passed.
+
+Terminal coverage: Unicode and ASCII; truecolour and 256-colour layers;
+bounded output; stale and unavailable observation; independent full-key
+routes; approval and compaction poses; matching late returns after SessionEnd;
+keyboard controls and terminal restoration. Additional pseudo-terminal review
+confirmed q, Escape, SIGINT and SIGTERM restore input attributes, cursor and
+alternate screen. Render bounds were checked from 1x1 through 500x100.
+
+Browser flow: loopback fixture panel loads -> woven form and observed status
+appear -> Sound: Off changes to Sound: Soft, then back to Off.
+Page identity, meaningful content, absence of error overlays, console health,
+visual evidence and control response passed. Desktop 1280x720 and mobile
+390x844 were checked; mobile content fitted without horizontal overflow.
+Stop replay completed with zero queued gestures and retained unresolved calls.
+Tiny 32x32 active and stale pages loaded with their respective accessible
+labels and no console errors; tiny relation and hollow-aperture drawing also
+received an independent Canvas review.
+
+Media: keeper-browser.png is a browser capture of disposable fixtures.
+keeper-terminal.png is a preview rendered from actual Unicode/ANSI terminal
+frames, rather than a native terminal screenshot. Fixtures are labelled in
+the browser. Neither medium measures compositor or terminal presentation FPS.
+
+Public package: fixed file list, no runtime activity records, caches, symlinks,
+personal filesystem paths or Git history. Archive contents were compared
+byte-for-byte after extraction. Files use mode 0644, directories 0755 and
+the keeper launcher 0755; archive owner metadata is generic.
+
+Limits: this is local fixture and package validation. A fresh live Codex hook
+installation, macOS and other terminal fonts were not exercised in this run.
+Dense relation scenes can redraw more slowly. Five-sample median renderer
+CPU timings for a 100x32 Focus frame were about 15.5 ms idle, 59.6 ms for
+32 tools plus 32 branches, and 351.6 ms for 256 tools plus 256 branches;
+these measurements are not end-to-end presentation rates.
+
+Reproduce from the extracted release root:
+  python3 -B -m unittest discover -s tests -v
+  node tests/test_presence.mjs
+  node tests/test_sound.mjs
+  node --check plugins/cyclops-keeper/assets/keeper.js

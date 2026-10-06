@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Balanced and Focus terminal compositions for the local Keeper observer."""
 import argparse
+import hashlib
 import json
 import math
 import os
@@ -16,6 +17,7 @@ import tty
 
 sys.dont_write_bytecode = True
 from activity import EVENTS, LABELS, TOOL_KINDS, default_data, public_snapshot
+from terminal_art import draw_keeper
 
 KEY_PATTERN = set('0123456789abcdef')
 
@@ -74,12 +76,25 @@ def _glyphs(unicode):
 
 
 def render(snapshot, width, height, blink=False, stale=False, *, mode='balanced',
-           now=0, calm=False, reduced_motion=False, unicode=True):
+           now=0, calm=False, reduced_motion=False, unicode=True,
+           colour=False, truecolour=False):
     """Draw one exact cell grid. Tool routes are key-stable and viewport-clamped."""
     width=max(1,int(width));height=max(1,int(height))
     mode='focus' if mode=='focus' else 'balanced'
     current=_record(snapshot,stale)
     state=current['state'];events=current['transitions'];g=_glyphs(bool(unicode))
+    label=LABELS.get(state,LABELS['unknown'])
+    status=f"KEEPER / {label}"
+    if current.get('relations_incomplete'):status+=' / UNTRACKED RELATIONS'
+    if current['stale']:status+=' / LAST SIGNAL OLD'
+    if current['active_tools'] and width>=24:status+=f" / {len(current['active_tools'])} TETHER{'S' if len(current['active_tools'])!=1 else ''}"
+    if current['active_subagents'] and width>=32:status+=f" / {len(current['active_subagents'])} BRANCH{'ES' if len(current['active_subagents'])!=1 else ''}"
+    if width>=50:status+=f" / {'CALM' if calm else 'C:CALM'} {'REDUCED' if reduced_motion else 'R:REDUCED'}  Q:EXIT"
+    status=status[:width].ljust(width)
+    if unicode:
+        return draw_keeper(current,width,height,status,mode=mode,now=now,
+                           calm=calm,reduced_motion=reduced_motion,blink=blink,
+                           colour=colour,truecolour=truecolour)
     body_rows=max(0,height-1)
     grid=[[' ' for _ in range(width)] for _ in range(body_rows)]
     def put(x,y,ch):
@@ -152,7 +167,7 @@ def render(snapshot, width, height, blink=False, stale=False, *, mode='balanced'
         strand(p(.14,.14),p(.63,.47),p(-.1,.83),p(.28,.98),g['trail'])
         eye_x,eye_y=p(-.13,-.17);erx=max(1,rx*.27);ery=max(1,ry*.24)
         ellipse(eye_x,eye_y,erx,ery);ellipse(eye_x,eye_y,erx*.69,ery*.68)
-        pupil='-' if blink and not reduced_motion else g['pupil']
+        pupil=g['ring'] if current['stale'] or state=='unknown' else '-' if blink and not reduced_motion else g['pupil']
         put(eye_x,eye_y,pupil)
         if state=='waiting':
             put(eye_x,eye_y-1,g['dot']);put(eye_x,eye_y+1,g['dot'])
@@ -164,7 +179,8 @@ def render(snapshot, width, height, blink=False, stale=False, *, mode='balanced'
         tool_return={e['key']:e for e in events if e['event']=='PostToolUse' and e['key']}
         agent_return={e['key']:e for e in events if e['event']=='SubagentStop' and e['key']}
         def route_for(key,is_agent=False):
-            h1=int(key[:8],16)/0xffffffff;h2=int(key[8:16],16)/0xffffffff
+            route_key=hashlib.sha256(key.encode('ascii')).hexdigest()
+            h1=int(route_key[:8],16)/0xffffffff;h2=int(route_key[8:16],16)/0xffffffff
             start=p(.52,-.48) if not is_agent else p(.64,-.87)
             reach=tether_span*(.55+.43*h2)
             end=(min(width-2,start[0]+reach),max(0,min(body_rows-1,cy+((h1-.5)*2)*max(1,min(ry*1.35,usable_h*.39)))))
@@ -179,13 +195,13 @@ def render(snapshot, width, height, blink=False, stale=False, *, mode='balanced'
             kind=tool['kind'];stroke=path_glyph(kind)
             matching=tool_return.get(tool['key'])
             age=max(0,now-matching['at']) if matching else 999
-            if matching and not reduced_motion and age<.8:
+            if matching and not reduced_motion and not frozen and age<.8:
                 progress=min(1,age/.8);polyline(bezier_points(start,c1,c2,end,14,1-progress),g['dash'])
                 point=bezier_points(start,c1,c2,end,14,1-progress)[-1];put(*point,g['node'])
             else:
                 start_event=next((e for e in reversed(events) if e['key']==tool['key'] and e['event']=='PreToolUse'),None)
                 extension=1
-                if start_event and not reduced_motion and 0<=now-start_event['at']<.55:
+                if start_event and not reduced_motion and not frozen and 0<=now-start_event['at']<.55:
                     extension=max(.08,(now-start_event['at'])/.55)
                 if state=='stopped':extension=min(extension,.72)
                 if state=='interrupted':extension=min(extension,.83)
@@ -203,14 +219,14 @@ def render(snapshot, width, height, blink=False, stale=False, *, mode='balanced'
         for agent in agents:
             start,c1,c2,end,h1,h2=route_for(agent['key'],True)
             returning=agent_return.get(agent['key']);age=max(0,now-returning['at']) if returning else 999
-            if returning and not reduced_motion and age<.8:
+            if returning and not reduced_motion and not frozen and age<.8:
                 end_progress=max(.05,1-age/.8)
                 polyline(bezier_points(start,c1,c2,end,14,end_progress),g['trail'])
                 point=bezier_points(start,c1,c2,end,14,end_progress)[-1];put(*point,g['sat'])
             else:
                 starting=next((e for e in reversed(events) if e['key']==agent['key'] and e['event']=='SubagentStart'),None)
                 extension=1
-                if starting and not reduced_motion and 0<=now-starting['at']<.55:
+                if starting and not reduced_motion and not frozen and 0<=now-starting['at']<.55:
                     extension=max(.08,(now-starting['at'])/.55)
                 if state=='ended':extension=min(extension,.73)
                 polyline(bezier_points(start,c1,c2,end,14,extension),g['trail'] if not frozen else g['dash'])
@@ -222,7 +238,7 @@ def render(snapshot, width, height, blink=False, stale=False, *, mode='balanced'
         # A matching return remains in the bounded event ribbon after its
         # active relation is removed. Draw its own short retraction so terminal
         # views express the observed return without restoring the tether.
-        if not reduced_motion:
+        if not reduced_motion and not frozen:
             active_tool_keys={item['key'] for item in tools}
             active_agent_keys={item['key'] for item in agents}
             for transition in events[-32:]:
@@ -245,7 +261,7 @@ def render(snapshot, width, height, blink=False, stale=False, *, mode='balanced'
                     polyline(points,g['trail'])
                     if points:put(*points[-1],g['sat'])
 
-        if not reduced_motion:
+        if not reduced_motion and not frozen:
             for transition in events[-32:]:
                 age=now-transition['at']
                 if not 0<=age<1:continue
@@ -265,20 +281,16 @@ def render(snapshot, width, height, blink=False, stale=False, *, mode='balanced'
             put(p(.95,-.15)[0],p(.95,-.15)[1],g['ring'])
         if state=='ended':
             put(p(-.25,.93)[0],p(-.25,.93)[1],g['ring'])
-        if not reduced_motion and not calm and state in {'idle','working','tool','branching'}:
+        if not reduced_motion and not frozen and not calm and state in {'idle','working','tool','branching'}:
             # A tiny orbit fleck establishes ambient life without implying work.
             orbit=now*.28;put(cx+rx*.88+math.cos(orbit)*1.4,cy-ry*.33+math.sin(orbit)*1.2,g['light'])
         if state=='compacting':put(*p(-.13,-.17),g['dot'])
 
-    label=LABELS.get(state,LABELS['unknown'])
-    status=f"KEEPER / {label}"
-    if current.get('relations_incomplete'):status+=' / UNTRACKED RELATIONS'
-    if current['stale']:status+=' / LAST SIGNAL OLD'
-    if current['active_tools'] and width>=24:status+=f" / {len(current['active_tools'])} TETHER{'S' if len(current['active_tools'])!=1 else ''}"
-    if current['active_subagents'] and width>=32:status+=f" / {len(current['active_subagents'])} BRANCH{'ES' if len(current['active_subagents'])!=1 else ''}"
-    if width>=50:status+=f" / {'CALM' if calm else 'C:CALM'} {'REDUCED' if reduced_motion else 'R:REDUCED'}  Q:EXIT"
-    status=status[:width].ljust(width)
-    return '\n'.join(''.join(row) for row in grid+[list(status)])
+    frame='\n'.join(''.join(row) for row in grid+[list(status)])
+    if colour:
+        prefix=colour_code(load_palette().get(state,[160,170,164]),truecolour,current['stale'],calm)
+        frame='\n'.join(prefix+row+'\x1b[0m' for row in frame.split('\n'))
+    return frame
 
 
 def load_palette():
@@ -309,7 +321,7 @@ def main():
     args=parser.parse_args()
     if not args.once and (not sys.stdin.isatty() or not sys.stdout.isatty()):
         parser.error('Open a terminal, or pass --once for a plain-text frame.')
-    palette=load_palette();encoding=(sys.stdout.encoding or '').upper()
+    encoding=(sys.stdout.encoding or '').upper()
     unicode=not args.ascii and 'UTF' in encoding and os.environ.get('TERM')!='dumb'
     truecolour=os.environ.get('COLORTERM') in {'truecolor','24bit'}
     colour=not args.no_colour and 'NO_COLOR' not in os.environ and os.environ.get('TERM')!='dumb'
@@ -341,7 +353,8 @@ def main():
             frame=render(current or 'unknown',width,height,
                          blink=not reduced_motion and state in {'idle','stopped'} and time.time()%6.5<.14,
                          stale=stale,mode=mode,now=time.time(),calm=calm,
-                         reduced_motion=reduced_motion,unicode=unicode)
+                         reduced_motion=reduced_motion,unicode=unicode,
+                         colour=colour and not args.once,truecolour=truecolour)
             cost=(time.perf_counter()-begin)*1000
             measurements['frames']+=1;measurements['cpu_ms']+=cost
             measurements['samples'].append(cost)
@@ -355,9 +368,8 @@ def main():
                 print(frame)
                 break
             if frame!=last_frame:
-                prefix=colour_code(palette.get(state,palette.get('unknown',[160,170,164])),truecolour,stale,calm) if colour else ''
                 rows=frame.split('\n')
-                output='\x1b[H'+''.join(prefix+row+'\x1b[K\n' for row in rows[:-1])+prefix+rows[-1]+'\x1b[K\x1b[0m'
+                output='\x1b[H'+''.join(row+'\x1b[K\n' for row in rows[:-1])+rows[-1]+'\x1b[K\x1b[0m'
                 sys.stdout.write(output);sys.stdout.flush();last_frame=frame
             cadence=.45 if reduced_motion else .25 if calm or state in {'idle','waiting','unknown','stopped'} else .09
             ready=select.select([sys.stdin],[],[],cadence)[0]

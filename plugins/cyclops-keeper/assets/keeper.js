@@ -197,7 +197,7 @@ function transitionGesture(t,s,g,progress) {
     ring(180+Math.cos(a)*62,-158+Math.sin(a)*64,7,t,.36,.72,.7);
   }
   if(g.event==='Stop') {
-    for(const item of s.tools) {
+    for(const item of evidence.tools) {
       const p=poseFor(item.key),point=curve(p.start,p.control1,p.control2,p.end,1-progress);
       pin(...point,t,p.offset,(1-progress)*.7,1.1);
     }
@@ -213,8 +213,37 @@ function drawArt(t,s,g,progress,gestureFold) {
   const scaleX=phaseScale+breath+catchPose-gestureFold*.18;
   const scaleY=phaseScale+breath+catchPose*.25-gestureFold*.08;
   ctx.scale(scaleX,scaleY);
-  // the body is Keeper's own drawn signature (this release ships no raster artwork)
-  ctx.save();ctx.scale(7,7);drawMini(t,s,true);ctx.restore();
+  // Keeper's own woven signature, shared with the terminal's subcell drawing.
+  // The membrane has an open upper-right crown and loose downward filaments.
+  const crown=[112,-160];
+  function filament(points,offset,alpha,width=.7,dash=[],until=1) {
+    path(sampledCurve(...points,42,until),ink(t,offset,alpha),width,dash);
+  }
+  const wash=ctx.createRadialGradient(12,-42,8,12,-42,158);
+  wash.addColorStop(0,ink(t,.08,.055));wash.addColorStop(1,ink(t,.08,0));
+  ctx.fillStyle=wash;ctx.beginPath();ctx.arc(12,-42,158,0,tau);ctx.fill();
+  for(let i=0;i<9;i++) {
+    const u=i/8;
+    filament([crown,[-18+u*72,-125-u*12],[-141+u*36,-36+u*23],[-39+u*63,64]],
+      i%3?.02:.19,i===0||i===8?.8:.3,i===0||i===8?1.15:.55);
+    filament([crown,[145-u*24,-82+u*24],[74-u*18,50-u*12],[-24+u*39,64]],
+      i%3?.19:.02,i===0||i===8?.72:.28,i===0||i===8?1.1:.55);
+  }
+  for(let i=0;i<5;i++) {
+    const y=-90+i*25;
+    filament([[-55-i*6,y],[0,y-30],[58,y+5],[93-i*11,y-24]],.26,.16,.45,[1,3]);
+  }
+  path([[91,-150],[135,-181],[159,-143]],ink(t,.2,.84),1.05);
+  path([[111,-158],[118,-128]],ink(t,.32,.6),.7);
+  pin(112,-160,t,.32,.87,1.25);
+  const tails=[[[ -40,58],[-94,100],[-106,155],[-147,190]],
+    [[-22,64],[-57,111],[-38,171],[-73,216]],
+    [[-8,61],[13,106],[-21,156],[-22,208]],
+    [[12,61],[47,106],[27,155],[54,185]]];
+  tails.forEach((points,i)=>filament(points,i%2?.19:.02,.58-i*.08,i<2?.78:.5,i<2?[]:[1,3],
+    evidence.phase==='interrupted'&&i===3?.43:1));
+  ring(0,0,34,t,.19,.79,1.05);
+  ctx.beginPath();ctx.arc(0,0,27,-2.7,1.7);ctx.strokeStyle=ink(t,.32,.72);ctx.lineWidth=.85;ctx.stroke();
   aperture(t,s,gestureFold);
 }
 function drawRelations(t,s,g,progress) {
@@ -247,9 +276,9 @@ function drawRelations(t,s,g,progress) {
   if(evidence.phase==='interrupted') {
     // The interruption is turn-level; it does not identify which outstanding
     // invocation caused it. Break a body filament, not a guessed tool tether.
-    path([[84,118],[91,126],[95,133]],ink(t,.19,.82),.85);
-    path([[107,146],[113,154],[110,161]],ink(t,.19,.66),.7,[2,2]);
-    ring(101,139,3.2,t,.19,.82,.7);
+    const tail=[[12,61],[47,106],[27,155],[54,185]];
+    path(sampledCurve(...tail,24,1,.62),ink(t,.19,.3),.5,[1,3]);
+    ring(...curve(...tail,.52),3.2,t,.19,.82,.7);
   }
   if(g?.event==='PostCompact') {
     for(let i=0;i<4;i++) {
@@ -272,8 +301,10 @@ function drawMini(t,s,local=false) {
   path([[9,-13],[5,-6],[-5,2],[-2,8],[-7,13]],ink(t,.35,.82),.85);
   path([[8,-12],[12,-15],[14,-12]],ink(t,.2,.85),.65);
   ring(0,0,4.4,t,.23,.95,.8);
-  path([[0,-2.5],[0,2.5]],ink(t,.4,.98),1.25);
-  const tools=s.tools||[],subagents=s.subagents||[]; // the first frame can come before any record (the art still loading)
+  if(evidence.phase==='unobserved') {
+    ctx.beginPath();ctx.ellipse(0,0,1.2,2.5,0,0,tau);ctx.strokeStyle=ink(t,.2,.55);ctx.lineWidth=.6;ctx.stroke();
+  } else path([[0,-2.5],[0,2.5]],ink(t,.4,.98),1.25);
+  const tools=evidence.tools,subagents=evidence.subagents;
   for(let i=0;i<tools.length;i++) {
     const item=tools[i],p=poseFor(item.key),end=[6+Math.cos(p.angle)*8,-7+Math.sin(p.angle)*7];
     path([[6,-8],end],ink(t,p.offset,.78),.52,item.kind==='execute'?[1,2]:[]);
@@ -320,7 +351,8 @@ function takeGesture(now) {
 function draw(now) {
   if(!ctx||document.hidden||!visible)return;
   const begin=performance.now(),dt=Math.min(.25,last?(now-last)/1000:.08);last=now;
-  if(motion.matches&&gestureQueue.length)gestureQueue.length=0;
+  if((motion.matches||evidence.relationsFrozen)&&gestureQueue.length)gestureQueue.length=0;
+  if(evidence.relationsFrozen)gesture=null;
   const target={work:evidence.work,receive:evidence.receive,interrupted:evidence.interrupted,opacity:evidence.dim?.43:1};
   const response=calm?1.8:4;
   for(const key of Object.keys(smooth))smooth[key]=motion.matches?target[key]:smooth[key]+(target[key]-smooth[key])*(1-Math.exp(-dt*response));
@@ -331,25 +363,31 @@ function draw(now) {
   }
   ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,width,height);ctx.save();
   ctx.lineCap='round';ctx.lineJoin='round';ctx.globalAlpha=smooth.opacity;
-  const t=motion.matches?0:now/1000*(calm?.42:1);colours.clear();
-  const g=motion.matches?null:takeGesture(now);
+  const t=motion.matches||evidence.relationsFrozen?0:now/1000*(calm?.42:1);colours.clear();
+  const g=motion.matches||evidence.relationsFrozen?null:takeGesture(now);
   const progress=g?Math.min(1,(now-g.started)/g.duration):1;
-  const fold=evidence.phase==='compacting'?.2:transitionGesture(t,smooth,g,progress);
+  // Compute deformation without drawing. Event gestures are painted only
+  // after entering the same body coordinate space as their keyed tethers.
+  const pulse=Math.sin(Math.PI*progress);
+  const gestureFold=g?.event==='PreCompact'?pulse*.22:g?.event==='UserPromptSubmit'?pulse*.11:
+    g?.event==='Stop'?(1-progress)*.08:g?.event==='SessionStart'?pulse*.09:0;
+  const fold=evidence.phase==='compacting'?.2:gestureFold;
   if(size==='tiny') {
     drawMini(t,smooth);
   } else {
     const compact=size==='expanded';
     const scale=Math.min(width/(compact?435:580),height/570)*.92;
-    const drift=motion.matches?0:Math.sin(t*.13)*2.2*(calm?.42:1);
+    const drift=motion.matches||evidence.relationsFrozen?0:Math.sin(t*.13)*2.2*(calm?.42:1);
     ctx.translate(width*.5,height*.37+drift*scale);
     ctx.scale(scale,scale);
     drawArt(t,smooth,g,progress,fold);
+    transitionGesture(t,smooth,g,progress);
     drawRelations(t,smooth,g,progress);
   }
   ctx.restore();publishMetrics(now,performance.now()-begin);
 }
 function fps() {
-  if(motion.matches)return 0;
+  if(motion.matches||evidence.relationsFrozen)return 0;
   if(evidence.phase==='tool'||evidence.phase==='branching'||evidence.phase==='receiving')return calm?12:24;
   if(evidence.phase==='waiting')return calm?4:7;
   if(gesture||gestureQueue.length)return calm?10:18;

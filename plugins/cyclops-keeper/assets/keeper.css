@@ -24,3 +24,8 @@ body[data-size="tiny"] footer,body[data-size="expanded"] footer { display:none; 
   .provider { margin-left:6px; }
   #scope { flex-basis:100%; margin:0; font-size:9px; }
 }
+
+#sound-mode { color:#aab8c7; background:transparent; border:1px solid #293443; border-radius:4px; padding:7px 10px; font:inherit; letter-spacing:.06em; cursor:pointer; white-space:nowrap; }
+#sound-mode:hover { border-color:#64748c; color:#e5e1d8; }
+#sound-mode:focus-visible { outline:2px solid #9cbec5; outline-offset:3px; }
+#sound-mode[aria-pressed="true"] { color:#dacbad; border-color:#786a51; }
