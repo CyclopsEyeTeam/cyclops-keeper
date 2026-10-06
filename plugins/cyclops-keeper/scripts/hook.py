@@ -34,6 +34,12 @@ def main():
                     continue
                 if isinstance(payload, dict):
                     update(data, payload)
+                    try:
+                        # Cyclops Link (off unless the person turned it on): Keeper's coarse facts only
+                        from keeper_link import observe
+                        observe(data, payload)
+                    except Exception:
+                        pass
                 break
     except Exception:
         # A decorative observer must never impede Codex or leak event contents.

@@ -308,6 +308,11 @@ def colour_code(rgb,truecolour,stale,calm=False):
 
 
 def main():
+    if sys.argv[1:2]==['link']:
+        # ./keeper link on | off | status: Keeper's own Cyclops Link switch
+        from keeper_link import cli
+        data=Path(os.environ['KEEPER_DATA']) if os.environ.get('KEEPER_DATA') else default_data()
+        raise SystemExit(cli(sys.argv[2:],data))
     parser=argparse.ArgumentParser(description='Cyclops Keeper local Codex presence. q / Escape exits; c and r change motion.')
     parser.add_argument('mode',nargs='?',choices=['focus'],help='fill the terminal with Keeper Focus')
     parser.add_argument('--data',type=Path,default=default_data())
@@ -335,6 +340,11 @@ def main():
                   'mode':mode,'calm':calm,'reduced_motion':reduced_motion}
     def terminate(_sig,_frame):raise KeyboardInterrupt
     try:
+        import link_view
+        watch=link_view.Watch(args.data)
+    except Exception:
+        link_view=watch=None
+    try:
         if not args.once:
             signal.signal(signal.SIGTERM,terminate);tty.setcbreak(sys.stdin)
             sys.stdout.write('\x1b[?1049h\x1b[?25l\x1b[2J');sys.stdout.flush()
@@ -355,6 +365,14 @@ def main():
                          stale=stale,mode=mode,now=time.time(),calm=calm,
                          reduced_motion=reduced_motion,unicode=unicode,
                          colour=colour and not args.once,truecolour=truecolour)
+            if watch is not None:
+                # Cyclops Link: Spark and Prism in their own looks at their seats, when Keeper is linked
+                try:
+                    frame=link_view.overlay(frame,width,height,watch.view(current['session'] if current else None),
+                                            watch.sheets,unicode=unicode,colour=colour and not args.once,
+                                            truecolour=truecolour,now=time.time(),reduced_motion=reduced_motion)
+                except Exception:
+                    pass
             cost=(time.perf_counter()-begin)*1000
             measurements['frames']+=1;measurements['cpu_ms']+=cost
             measurements['samples'].append(cost)

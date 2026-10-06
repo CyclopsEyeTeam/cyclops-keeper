@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.0
+
+- **Cyclops Link** (off until `./keeper link on`): Keeper, Spark and Prism notice each other when they work in the same
+  folder. Spark and Prism appear in Keeper's terminal at their seats (left, upper left), each in their own exported
+  look, with a thread while one calls another. Keeper shares only his coarse state and counts; a heartbeat worker keeps
+  that fresh while Codex runs and says so when Codex closes.
+- `./keeper link reach on`, a second, separate switch: only then does Keeper tell the others when a shell call of his runs
+  `claude`, `agy` or `gemini`, keeping the class and nothing of the command.
+- Keeper's own Link mark sheet (`link-mark/keeper.json`) and text mark `◎`, exported by his own renderer.
+
 ## 0.3.2
 
 - `install.sh` and `uninstall.sh`: one-step install, refresh and removal with Codex's own plugin commands.

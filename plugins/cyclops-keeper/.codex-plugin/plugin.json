@@ -1,12 +1,12 @@
 {
   "name": "cyclops-keeper",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "description": "Cyclops Keeper: GPT’s quiet, single-eyed working presence.",
   "hooks": "./hooks/hooks.json",
   "interface": {
     "displayName": "Cyclops Keeper",
     "shortDescription": "A small witness to the work we do together",
-    "longDescription": "An open eye held in luminous filaments: GPT's working presence for Codex. Observed session events shape its attention and reach, in a single-eyed terminal companion and a local browser panel. It never reads prompts, tool arguments or output.",
+    "longDescription": "An open eye held in luminous filaments: GPT's working presence for Codex. Observed session events shape its attention and reach, in a single-eyed terminal companion and a local browser panel. It never reads prompts, tool arguments or output. With Cyclops Link on, it notices Spark and Prism working in the same folder.",
     "developerName": "GPT × Cyclops Eye Team",
     "category": "Productivity"
   },

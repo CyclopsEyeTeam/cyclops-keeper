@@ -10,6 +10,8 @@ What each part of this repository is, who made it, and under what terms it is he
 | Palette | `assets/palette.json` | Generated from Infinite Colour by `scripts/generate-palette.mjs`. | MIT |
 | Sound | `assets/keeper-sound.mjs` | Synthesised in code; no samples. | MIT |
 | "I am Keeper" opening | `assets/keeper-manifest.wav` | Made in the same project. The words were synthesised with the eSpeak NG speech synthesiser, then slowed, filtered and shaped inside Keeper's synthesised membrane sound. It is a synthetic voice, not a recording of a person. | MIT |
+| Cyclops Link | `scripts/link.py`, `scripts/keeper_link.py`, `scripts/link_view.py`, `tools/export-link-mark.py`, `tests/test_link.py` | Written for Keeper by the Cyclops Eye Team with Claude, from the Cyclops Link V1 specification. Keeper's Link module follows the same structure as Prism's own implementation by the same team; the two share no code at runtime. | MIT |
+| Peer mark sheets and Link fixtures | `link-mark/spark.json`, `link-mark/prism.json`, `tests/fixtures/cyclops-link-v1/`, `docs/CYCLOPS-LINK-V1.md` | Vendored, unchanged: Spark's and Prism's own exported looks (see `link-mark/SOURCE.md`) and the Cyclops Link V1 specification and fixtures, all Cyclops Eye Team projects. | MIT |
 | Screenshots | `media/` | Browser capture and terminal previews rendered from this release's actual subcell frames, with disposable fixture data. The previews are not compositor-FPS measurements. | MIT |
 
 Not included: the raster membrane artwork used by the private project. It is held back until the provenance of the

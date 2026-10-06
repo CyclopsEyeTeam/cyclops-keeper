@@ -44,3 +44,11 @@ Reproduce from the extracted release root:
   node tests/test_presence.mjs
   node tests/test_sound.mjs
   node --check plugins/cyclops-keeper/assets/keeper.js
+
+Cyclops Keeper 0.4.0 checks - 2026-10-06
+- Cyclops Link V1 conformance from the vendored fixtures (derivation, records, views), the privacy fixture reproduced
+  exactly through the real hook (record equal to the fixture's expect_record; no forbidden substring in either Link file).
+- Worker: heartbeat while the host lives, truthful end on host exit, SessionEnd and switch-off, 60 s grace then removal,
+  no end claimed without a known host. Reach is never computed while its switch is off.
+- Three-way run on one machine with stand-in codex/agy host processes and Spark's real helper: three records in one room,
+  threads spark->keeper and keeper->prism, heartbeats fresh past 15 s, all three ended truthfully.

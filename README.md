@@ -8,7 +8,8 @@ The open crown and incomplete rings leave room for revision. It lives in your te
 in a local browser panel.
 
 Its movement follows observed Codex session events only. It does not claim to reveal private thoughts, feelings,
-awareness, or task success, and it never reads your prompts, tool arguments or output.
+awareness, or task success, and it never reads your prompts, tool arguments or output. (Cyclops Link's optional
+*reach* setting, off by default, is the one narrow exception: see below.)
 
 ![Cyclops Keeper in the browser panel](media/keeper-browser.png)
 
@@ -65,6 +66,33 @@ the presentation. Keys `c` and `r` toggle Calm and Reduced Motion; `--calm` and 
 
 The terminal uses 2 × 4 Unicode subcells to draw smooth curves. Sea-glass membrane threads, a lavender crown, and a pale-gold eye stay distinct in truecolour and 256-colour terminals. No terminal image protocol or third-party Python package is needed. `--once` always emits plain text.
 
+## Cyclops Link
+
+Keeper has two siblings: **Spark**, Claude's presence in Claude Code (Cyclops Spark), and **Prism**, Gemini's presence in
+Antigravity (Cyclops Prism). With Cyclops Link on, the three notice each other when they work in the same folder on the
+same machine.
+
+```bash
+./keeper link on          # Keeper shares his coarse state and sees Spark and Prism here
+./keeper link status      # on/off, and who is here now
+./keeper link reach on    # also say whom he is calling (see Privacy)
+./keeper link off         # his records say he has ended, and are removed a minute later
+```
+
+- In the terminal compositions, Prism appears to Keeper's upper left and Spark to his left, each in **their own look**,
+  exported by their own renderer, never redrawn by Keeper. Peers are drawn only on cells his own form leaves empty, and
+  never over his status line.
+- When one of them calls another, a thread runs from caller to callee while that call is in flight.
+- Keeper shares only his coarse state (idle, working, tool, waiting, compacting, stopped, interrupted, ended), how many
+  tools and branches are in flight, and, with `reach` on, whom he is calling. Never prompts, commands, paths, tool names,
+  model names or ids.
+
+Link is off until you turn it on; `KEEPER_LINK=1` or `0` overrides the switch, and a shared `CYCLOPS_LINK` never turns
+him on. While Codex runs, a small worker keeps his record fresh; when Codex closes it says so. The protocol is
+[docs/CYCLOPS-LINK-V1.md](docs/CYCLOPS-LINK-V1.md).
+
+![Cyclops Link: Spark, Keeper and Prism in one folder, each in her own look, with handoff threads](media/cyclops-link.png)
+
 The browser panel prints a loopback URL. Without a session pin it follows the latest local session;
 `--session FULL_SESSION_HASH` pins one session and never falls back to another. `/?calm=1` gives the lower-contrast,
 slower rhythm and `/?mono=1` monochrome. The system reduced-motion preference freezes decorative movement while observed
@@ -116,6 +144,17 @@ model name: tool names are reduced to five classes (`inspect`, `change`, `execut
 SHA-256 keys. The browser panel binds only to `127.0.0.1`, checks the Host header, serves a fixed list of its own
 assets and offers no route that changes anything. The record format is described in [PROTOCOL.md](PROTOCOL.md).
 
+**Cyclops Link**, only while you have it on, adds two things:
+
+- In Keeper's data folder, `link/<session-hash>.json`: his Link facts for that session (state, counts, the classes he is
+  reaching, the salted instance and room ids, and the Codex process id so his worker can tell when Codex closes).
+- In `$XDG_STATE_HOME/cyclops-link/` (0700), `keeper-<instance>.json` (0600): exactly Cyclops Link V1's eleven fields.
+  The instance and room are salted one-way ids of the session and the working folder; neither is written anywhere.
+
+**Reach** is a second switch, off by default. Only with `./keeper link reach on` does Keeper look at a shell call's
+arguments, in memory, for one thing: whether the program it runs is `claude` (Spark's host) or `agy`/`gemini` (Prism's).
+He keeps the class it names (`spark`, `prism`) for as long as that call is in flight, and nothing of the command.
+
 ## Tests
 
 ```bash
@@ -134,6 +173,10 @@ Tests cover event privacy and correlation, return ordering, bounds, stale poses,
 | `plugins/cyclops-keeper/hooks/` | The observational hook declarations. |
 | `plugins/cyclops-keeper/scripts/` | `hook.py` and `activity.py` (the observer), `terminal.py` and `terminal_art.py` (the terminal compositions and woven subcell drawing), `view.py` (the browser panel server), `generate-palette.mjs` (rebuilds `palette.json`). |
 | `plugins/cyclops-keeper/assets/` | The browser panel, Keeper's SVG mark, palette, colour engine and sound. |
+| `plugins/cyclops-keeper/scripts/link.py`, `keeper_link.py`, `link_view.py` | Cyclops Link: Keeper's own V1 implementation, his adapter and heartbeat worker, and how he shows his peers. |
+| `plugins/cyclops-keeper/link-mark/` | Mark sheets: Keeper's own (`keeper.json`) and Spark's and Prism's vendored copies. |
+| `tools/export-link-mark.py` | Exports Keeper's mark sheet from his own terminal renderer. |
+| `docs/CYCLOPS-LINK-V1.md` | The Cyclops Link V1 protocol (vendored); its fixtures are in `tests/fixtures/`. |
 | `keeper` | The launcher. |
 | `install.sh`, `uninstall.sh` | Install or refresh, and remove, with Codex's own plugin commands. |
 | `tools/keeper-fixture.py` | Disposable visual fixtures. |

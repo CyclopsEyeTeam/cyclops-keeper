@@ -35,3 +35,15 @@ Each accepted event appends only `{sequence,event,at,kind,key}` to a 32-entry pr
 Updates serialize through a short per-session file lock and atomically replace a 0600 snapshot. The hook exits 0 with `{}` even if its input or storage is unusable. It issues no allow/deny, rewritten input, additional context, or turn-continuation response. A renderer may animate the bounded observed transition ribbon; ambient animation never changes these lifecycle fields.
 
 Rendering notes for 0.3.1: stale or unavailable evidence freezes decorative movement and old transition gestures. An ended session can still show an exact subsequently observed return; this does not reopen the ended session or establish success. Colour distinguishes material and finite invocation classes, never semantic outcomes.
+
+## Cyclops Link (0.4.0, off unless turned on)
+
+While `./keeper link on` (or `KEEPER_LINK=1`), the hook also keeps `PLUGIN_DATA/link/<session-hash>.json` (directory 0700):
+`{"v": 1, "instance", "room", "host": {"pid", "start"} | null, "state", "tools", "branches", "reaching", "reach_calls",
+"changed_at"}`. `instance` and `room` are Cyclops Link's salted 16-character ids; `state` is Keeper's state in Link's
+words (`branching` is `working`; `unknown` is never published); `reach_calls` maps the SHA-256 key of a call in flight to
+the presence class it reaches, and is filled only with `./keeper link reach on`. A detached worker
+(`keeper_link.py beat`) is the only writer of Keeper's public Link record, `$XDG_STATE_HOME/cyclops-link/keeper-<instance>.json`,
+exactly as [docs/CYCLOPS-LINK-V1.md](docs/CYCLOPS-LINK-V1.md) §4 defines it. It refreshes it every 4 seconds while the Codex
+process lives, publishes `ended` when Codex closes, the session ends or Link is switched off, and removes it a minute later.
+If it cannot tell whether Codex is alive, it never claims an end: the record simply goes stale.
