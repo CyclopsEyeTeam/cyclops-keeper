@@ -1,0 +1,155 @@
+{
+  "version": "0.4.2",
+  "python": {
+    "passed": 112,
+    "baseline": 92,
+    "added": 20,
+    "revised_legacy_reach_assertions": 2
+  },
+  "node": {
+    "passed": 12
+  },
+  "final_GUI": {
+    "passed": 2,
+    "modes": [
+      "side",
+      "top"
+    ],
+    "desktop_clipboard_untouched": true
+  },
+  "real_host": {
+    "checks": [
+      {
+        "mode": "side",
+        "real_installed_codex": "0.161.0",
+        "default_host": true,
+        "initial_unattached": true,
+        "trusted_SessionStart": true,
+        "project_handle_verified": true,
+        "generation": 1,
+        "geometry_verified": true,
+        "no_repeated_focus": true,
+        "keeper_close_preserves_codex": true,
+        "codex_exit_via_its_own_terminal": true,
+        "codex_exit_status": 130,
+        "terminal_restored": true,
+        "owned_runtime_removed": true,
+        "credentials_copied": false,
+        "external_model_call": false,
+        "fixture_provider": "loopback closed port",
+        "test_only_local_hook_trust_bypass": true
+      },
+      {
+        "mode": "top",
+        "real_installed_codex": "0.161.0",
+        "default_host": true,
+        "initial_unattached": true,
+        "trusted_SessionStart": true,
+        "project_handle_verified": true,
+        "generation": 1,
+        "geometry_verified": true,
+        "no_repeated_focus": true,
+        "keeper_close_preserves_codex": true,
+        "codex_exit_via_its_own_terminal": true,
+        "codex_exit_status": 0,
+        "terminal_restored": true,
+        "owned_runtime_removed": true,
+        "credentials_copied": false,
+        "external_model_call": false,
+        "fixture_provider": "loopback closed port",
+        "test_only_local_hook_trust_bypass": true
+      }
+    ]
+  },
+  "window": {
+    "test": "installed unmodified Codex 0.161.0 local lifecycle with candidate hook in isolated test home",
+    "host_mode": "default",
+    "session_attached": true,
+    "session_start_observed": true,
+    "project_context_verified": true,
+    "keeper_initial_focus": true,
+    "no_repeated_focus": true,
+    "keeper_close_preserves_codex": true,
+    "terminal_restored": true,
+    "runtime_removed": true,
+    "test_turn_submitted_to_dummy_provider": true,
+    "external_model_call": false,
+    "Link_consent": "off and unchanged",
+    "test_only_hook_trust": "vetted local hook bypass in disposable home only"
+  },
+  "resources": {
+    "fixture_only": true,
+    "layout": "35-column side, 120x42 terminal",
+    "sample_seconds": 6.01,
+    "CPU_unit": "percent of one CPU; includes each measured process and its reaped children",
+    "excluded": "Codex execution, desktop compositor, unmeasured external helper processes; no FPS claim",
+    "processes": {
+      "outer launcher": {
+        "resident_MiB": 20.45,
+        "CPU_percent": 0.17
+      },
+      "pane supervisor": {
+        "resident_MiB": 20.34,
+        "CPU_percent": 3.83
+      },
+      "Keeper renderer": {
+        "resident_MiB": 22.23,
+        "CPU_percent": 1.33
+      },
+      "tmux server": {
+        "resident_MiB": 4.34,
+        "CPU_percent": 0.17
+      },
+      "private client": {
+        "resident_MiB": 4.01,
+        "CPU_percent": 0.0
+      }
+    }
+  },
+  "protected_files": 26,
+  "GNOME_body_identical": true,
+  "independent_review": "no remaining material blockers",
+  "live_global_activation": false,
+  "GitHub_publication_authorized": true,
+  "real_Codex_input": {
+    "checks": [
+      {
+        "mode": "side",
+        "actual_codex": "0.161.0",
+        "host_mode": "explicit --no-daemon for isolated GUI compatibility",
+        "GUI": "isolated GNOME/X11",
+        "test_only_local_hook_trust_bypass": true,
+        "actual_Ctrl_Shift_V_paste_visible": true,
+        "paste_unsubmitted": true,
+        "Codex_requested_mouse_capture": true,
+        "actual_wheel_up_and_down_preserved_composer": true,
+        "tmux_did_not_intercept_application_mouse": true,
+        "desktop_clipboard_untouched": true,
+        "external_model_call": false,
+        "no_transcript_scroll_distance_claim": true,
+        "Codex_exited_through_its_terminal": true
+      },
+      {
+        "mode": "top",
+        "actual_codex": "0.161.0",
+        "host_mode": "explicit --no-daemon for isolated GUI compatibility",
+        "GUI": "isolated GNOME/X11",
+        "test_only_local_hook_trust_bypass": true,
+        "actual_Ctrl_Shift_V_paste_visible": true,
+        "paste_unsubmitted": true,
+        "Codex_requested_mouse_capture": true,
+        "actual_wheel_up_and_down_preserved_composer": true,
+        "tmux_did_not_intercept_application_mouse": true,
+        "desktop_clipboard_untouched": true,
+        "external_model_call": false,
+        "no_transcript_scroll_distance_claim": true,
+        "Codex_exited_through_its_terminal": true
+      }
+    ]
+  },
+  "public_tree_full_suite": {
+    "python_passed": 112,
+    "node_passed": 12,
+    "failures": 0
+  }
+}

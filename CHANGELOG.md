@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.4.2 Hybrid Launcher V1 candidate
+
+- Preserve the GNOME/X11 separate-window route and add owned tmux side/top layouts.
+- Keep Codex installed and unmodified, with exact argument forwarding and verified hook attachment.
+- Add private mouse history and explicit clipboard copying; respect existing tmux configuration.
+- Preserve unrelated panes, initial focus, independent shutdown and terminal restoration.
+- Tighten Reach: tool arguments are never read; outgoing threads require permitted evidence.
+
+## 0.4.1 launcher candidate
+
+- Add a reversible Bash wrapper and separate GNOME/X11 launcher for the three Keeper flags.
+- Pin Keeper through its trusted host hook and a private per-launch handshake, with no latest-session fallback.
+- Keep Codex unmodified, existing Link consent intact, and panel shutdown independent.
+
+
 ## 0.4.0
 
 - **Cyclops Link** (off until `./keeper link on`): Keeper, Spark and Prism notice each other when they work in the same

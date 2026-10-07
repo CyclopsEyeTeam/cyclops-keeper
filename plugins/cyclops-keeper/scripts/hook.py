@@ -35,6 +35,11 @@ def main():
                 if isinstance(payload, dict):
                     update(data, payload)
                     try:
+                        from launcher_link import observe as attach_launcher
+                        attach_launcher(payload)
+                    except Exception:
+                        pass
+                    try:
                         # Cyclops Link (off unless the person turned it on): Keeper's coarse facts only
                         from keeper_link import observe
                         observe(data, payload)

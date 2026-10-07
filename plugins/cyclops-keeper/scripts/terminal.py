@@ -307,6 +307,33 @@ def colour_code(rgb,truecolour,stale,calm=False):
     return f'\x1b[38;5;{16+36*r+6*g+b}m'
 
 
+def launch_selection(path):
+    # The sentinel is deliberately an invalid/missing public record selection;
+    # it never delegates to the renderer's ordinary latest-session selection.
+    from launcher_link import read_attachment
+    for _ in range(2):
+        value=read_attachment(path)
+        directory=value.get('project_fd')
+        if type(directory) is int:
+            try:
+                fd=os.open(f"/proc/{value['owner']['pid']}/fd/{directory}",os.O_RDONLY|os.O_DIRECTORY)
+            except OSError:
+                continue  # the broker may have replaced this attachment generation
+            try:
+                # The owner may recycle an FD number between our snapshot and
+                # open. Pin a local handle, then confirm the same generation.
+                fresh=read_attachment(path)
+                if (fresh.get('generation',0)!=value.get('generation',0)
+                        or fresh.get('owner')!=value.get('owner')
+                        or fresh.get('session')!=value.get('session')
+                        or fresh.get('project_fd')!=directory):
+                    continue
+                os.fchdir(fd)
+            finally: os.close(fd)
+        return value.get('session') or '0'*64, bool(value.get('session'))
+    return '0'*64,False
+
+
 def main():
     if sys.argv[1:2]==['link']:
         # ./keeper link on | off | status: Keeper's own Cyclops Link switch
@@ -316,7 +343,9 @@ def main():
     parser=argparse.ArgumentParser(description='Cyclops Keeper local Codex presence. q / Escape exits; c and r change motion.')
     parser.add_argument('mode',nargs='?',choices=['focus'],help='fill the terminal with Keeper Focus')
     parser.add_argument('--data',type=Path,default=default_data())
-    parser.add_argument('--session',help='Pin the full session hash from the state file')
+    selection=parser.add_mutually_exclusive_group()
+    selection.add_argument('--session',help='Pin the full session hash from the state file')
+    selection.add_argument('--attachment',type=Path,help=argparse.SUPPRESS)
     parser.add_argument('--no-colour',action='store_true')
     parser.add_argument('--ascii',action='store_true',help='Use the complete ASCII fallback')
     parser.add_argument('--calm',action='store_true',help='Lower contrast and ambient rhythm')
@@ -348,8 +377,15 @@ def main():
         if not args.once:
             signal.signal(signal.SIGTERM,terminate);tty.setcbreak(sys.stdin)
             sys.stdout.write('\x1b[?1049h\x1b[?25l\x1b[2J');sys.stdout.flush()
+            if args.attachment:
+                from launcher_link import atomic, process_identity
+                atomic(args.attachment.with_suffix('.ready'),process_identity(os.getpid()))
         last_frame=None
         while True:
+            attached=True
+            if args.attachment:
+                try: args.session,attached=launch_selection(args.attachment)
+                except (OSError,ValueError): break
             sessions=public_snapshot(args.data,session=args.session)['sessions']
             current=next((s for s in sessions if s['session']==args.session),None) if args.session else next(iter(sessions),None)
             stale=bool(current and current['stale'])
@@ -373,6 +409,9 @@ def main():
                                             truecolour=truecolour,now=time.time(),reduced_motion=reduced_motion)
                 except Exception:
                     pass
+            if args.attachment:
+                message=('Session: attached / '+LABELS.get(state,LABELS['unknown'])+(' / OLD SIGNAL' if stale else '')) if attached else 'Session: unattached — waiting for this launch’s trusted Keeper hook'
+                frame=frame.rsplit('\n',1)[0]+'\n'+message[:width].ljust(width) if height>1 else message[:width].ljust(width)
             cost=(time.perf_counter()-begin)*1000
             measurements['frames']+=1;measurements['cpu_ms']+=cost
             measurements['samples'].append(cost)
@@ -403,6 +442,9 @@ def main():
             termios.tcsetattr(sys.stdin,termios.TCSADRAIN,attrs)
             signal.signal(signal.SIGTERM,old_handler)
             sys.stdout.write('\x1b[0m\x1b[?25h\x1b[?1049l');sys.stdout.flush()
+        if args.attachment:
+            from launcher_link import cleanup_dead_launcher
+            cleanup_dead_launcher(args.attachment)
     if args.metrics:
         sample=measurements['samples'];updates=measurements['updates']
         report={k:v for k,v in measurements.items() if k not in {'samples','updates','last_update'}}

@@ -1,3 +1,6 @@
+Current candidate: Hybrid Launcher V1 / 0.4.2. See docs/KEEPER-HYBRID-V1.md.
+The dated sections below preserve evidence for their named historical versions.
+
 Cyclops Keeper 0.3.1 release checks - 2026-10-06
 
 Environment: Linux, Python 3.12, Node.js, Codex in-app browser.
@@ -52,3 +55,101 @@ Cyclops Keeper 0.4.0 checks - 2026-10-06
   no end claimed without a known host. Reach is never computed while its switch is off.
 - Three-way run on one machine with stand-in codex/agy host processes and Spark's real helper: three records in one room,
   threads spark->keeper and keeper->prism, heartbeats fresh past 15 s, all three ended truthfully.
+
+Cyclops Keeper 0.4.1 launcher candidate — validation, 2026-10-07
+
+Result: candidate ready for review; not promoted or activated in the live shell.
+The custom Codex build was stopped. Its clean source snapshot and findings remain
+preserved. The installed CLI is still codex-cli 0.161.0, reached through the ordinary
+~/.local/bin/codex -> ~/.codex/packages/standalone/current/bin/codex launcher.
+No Codex source, live plugin, shell startup file, update pointer or live config was
+modified by this launcher work. The public Keeper source checkout remains clean.
+
+Implementation
+- A separate codex-keeper executable and reversible, current-shell Bash function.
+- --keeper: larger Focus view; --keeper-side: right-hand window; --keeper-top: top view.
+- Only the selected Keeper flag is consumed; other arguments retain exact values/order.
+  Option values and the literal -- boundary are preserved. Conflicting views are refused.
+- Ordinary calls immediately exec the installed Codex. The installed symlink is resolved
+  each time, so normal updates continue to select the current executable.
+- Existing Keeper 0.4.0 renderer, Cyclops Link and consent switches are retained.
+- Trusted SessionStart sends only a session hash and read-only project directory handle
+  over a private, per-launch local socket. A random launch capability, uid and host process
+  lineage constrain the receipt. No latest-session/cwd identity inference is used.
+- Process start identities and attachment generations guard PID and directory-handle reuse.
+- One-time window activation; closing Keeper leaves Codex running; Codex exit closes Keeper.
+  Same-terminal duplicate launches and repeated flags cannot create extra panels.
+
+Verified automated checks
+- Python: 92 tests passed, 37.981 seconds, including 13 launcher tests.
+- Node: 12 existing presence/sound tests passed; renderer JavaScript syntax passed.
+- Bash syntax: wrapper, separate executable and installer passed.
+- Launcher tests cover exact arguments, wrong launch capabilities, privacy, no latest-file
+  fallback, closed/recycled directory handles, PTY resizing, terminal restoration, refusal
+  of existing shell customisations, disappearing X11 windows, safe dead-owner cleanup,
+  duplicate launch refusal, owned-child death guard and conventional signal exit status.
+- A shell fixture verified normal update command forwarding, following an updated executable
+  symlink and full wrapper removal. It did not perform an actual Codex software update.
+
+Desktop / installed-host checks
+Linux GNOME Terminal on X11; installed unmodified Codex 0.161.0. A disposable CODEX_HOME
+contained the candidate plugin, installed using Codex's own plugin command. No credentials
+were copied. One local dummy-provider turn triggered the actual SessionStart hook; no
+external model call or production task was run. Vetted local hook trust was bypassed only
+inside that disposable test home. Normal public installation retains Codex's hook review.
+Both the default local host and explicit --no-daemon routes passed:
+- Keeper received initial focus; selecting another window did not trigger repeated focus.
+- The session pin matched the actual hook's hashed activity record and SessionStart transition.
+- Keeper's actual project directory matched the host project supplied by the hook.
+- Closing the renderer left Codex alive. Ending Codex removed the owned runtime instance,
+  closed the Keeper window and restored the original Codex terminal attributes.
+
+Additional desktop fixtures used the actual launcher and GNOME windows with a stand-in
+Codex host, not an AI session. Both side and top matched the desktop work area, resized
+successfully, and created one panel from duplicate flags. Codex-first shutdown and launcher
+SIGKILL left no living owned children or runtime instance. Two simultaneous launches in
+the same folder retained separate exact session pins; closing one Keeper left both Codex
+hosts and the other Keeper alive. The test desktop's original focus was restored afterward.
+
+Limits and retained observations
+- Validated platform: Bash, Linux, GNOME Terminal, X11. Other terminals, Wayland and macOS
+  are outside this candidate. No native Codex UI or /keeper slash commands are added.
+- Codex 0.161 queues SessionStart until the first turn. Keeper explicitly says unattached
+  until its trusted receipt arrives. A shared/remote host lacking the private link stays
+  unattached; the launcher does not silently alter daemon settings or infer identity.
+- A hard kill may prevent source-terminal restoration. Normal exits and supervised signals
+  restore it; reset is available after a hard kill. The renderer restores its own terminal
+  when it observes owner death. SIGKILL cannot promise universal cleanup if every participant
+  is killed simultaneously. Persistent zero-byte per-terminal lock files are intentional;
+  active ownership ends automatically when the process closes its descriptor.
+- An earlier full-suite run had one intermittent existing concurrent-writer test failure
+  (12 of 16 receipts observed). The unchanged baseline's isolated check passed; final full
+  candidate checks passed. Storage or timing causation was not established, and no guard or
+  timeout was weakened. GUI harness assertions were corrected to wait for placement and
+  completed resizing, rather than sampling the initial window/intermediate dimensions.
+- Independent code review found and verified fixes for shell restoration, directory-handle
+  races, vanished windows and owner cleanup; final review reported no material blockers.
+
+Storage and promotion boundary
+All large/disposable source copies and generated test state remained on the designated HDD.
+Initial estimate <20 MiB; Codex's disposable plugin catalog increased the completed run to
+106 MiB, with 476 GiB free. No credentials, transcripts or raw test startup output are in the
+release candidate. Only selected source, checks and sanitized results are preserved here.
+The native scratch tree and this test run have not been deleted; they are retirement
+candidates for a separate decision. Candidate activation is still a review/promotion step.
+
+Reproduce source checks with TMPDIR set to your development scratch directory:
+  python3 -B -m unittest discover -s tests -v
+  node --test tests/test_presence.mjs tests/test_sound.mjs
+  node --check plugins/cyclops-keeper/assets/keeper.js
+  bash -n keeper-shell.sh codex-keeper install.sh
+
+Manual desktop acceptance after installing the reviewed candidate:
+  source ./keeper-shell.sh
+  codex --keeper -C /path/to/project
+Wait for the first trusted session hook, check the attached status, select another window,
+resize Keeper, then close Keeper and confirm Codex continues. Repeat with --keeper-side and
+--keeper-top; exit Codex first and confirm its companion closes. keeper_shell_off restores
+the ordinary shell command. No shell startup file needs editing.
+
+Hybrid Launcher V1 / 0.4.2: 112 Python checks and 12 renderer/sound checks passed; actual Codex 0.161.0 smoke passed window/side/top. See docs/KEEPER-HYBRID-V1.md for fixture boundaries, clipboard acceptance, resource sample, limits and rollback.

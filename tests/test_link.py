@@ -216,19 +216,9 @@ class Lifecycle(unittest.TestCase):
 
 
 class Adapter(unittest.TestCase):
-    def test_reaching_comes_only_from_the_program_names_of_a_shell_call(self):
-        cases = {
-            'claude -p "hello"': "spark", "FOO=1 timeout 30 claude --print x": "spark",
-            "cd /tmp && agy --prism": "prism", "echo hi | gemini -p x": "prism", "sudo -E env agy": "prism",
-            "echo claude": None, "cat notes/agy.md": None, "grep gemini README.md": None,
-            "git commit -m 'ask claude'": None, "python3 claude.py": None, "": None,
-        }
-        for command, want in cases.items():
-            self.assertEqual(keeper_link.reaching_for({"command": command}), want, command)
-        self.assertEqual(keeper_link.reaching_for({"command": ["bash", "-lc", "claude -p x"]}), "spark")
-        self.assertEqual(keeper_link.reaching_for({"command": ["agy", "run"]}), "prism")
-        self.assertIsNone(keeper_link.reaching_for({"command": 'claude -p "unterminated'}) and None)
-        self.assertIsNone(keeper_link.reaching_for(None))
+    def test_tool_arguments_never_supply_outgoing_target_evidence(self):
+        for value in ({'command':'claude -p secret'}, {'command':['agy','run']}, None):
+            self.assertIsNone(keeper_link.reaching_for(value))
 
     def test_states_are_keepers_own_in_links_words(self):
         self.assertEqual(keeper_link.STATE["branching"], "working")
@@ -271,7 +261,7 @@ class Room:
 
 
 class Privacy(unittest.TestCase):
-    def test_adversarial_codex_payloads_become_exactly_the_fixture_record(self):
+    def test_adversarial_codex_payloads_preserve_privacy_without_argument_inference(self):
         pv = load("privacy.json")
         facts = pv["host_facts"]
         with tempfile.TemporaryDirectory() as t:
@@ -286,7 +276,7 @@ class Privacy(unittest.TestCase):
             records = room.records()
             self.assertEqual(len(records), 1)
             got = {k: v for k, v in records[0].items() if k != "updated_at"}
-            self.assertEqual(got, pv["expect_record"])
+            self.assertEqual(got, {**pv["expect_record"], "reaching": []})
             # Nothing of the session leaves Keeper: not in Link, not in his own private Link facts
             everything = "".join(p.read_text(errors="replace") for p in (room.home / "link").iterdir() if p.is_file())
             everything += "".join(p.read_text(errors="replace") for p in (room.data / "link").iterdir() if p.is_file())

@@ -9,17 +9,16 @@ The adapter turns Codex hook facts into the few things Link may carry: Keeper's 
 state and how many tools and branches are in flight. Nothing else leaves it: no command,
 prompt, path, tool name, call id or session id is written anywhere.
 
-Reaching is a second, separate choice. Keeper's promise is that he never reads tool
-arguments, so he only tells Spark or Prism that he is calling them when the person also
-turns on `./keeper link reach on`. Then, and only then, he looks at the program names in a
-shell call (claude, agy, gemini) in memory, and keeps only the class it names.
+Reach is a second, separate choice. It never authorizes reading tool arguments.
+The current Codex hook adapter supplies no permitted outgoing-target evidence;
+Keeper therefore publishes no inferred outgoing calls. Incoming threads remain
+owned by the peers that reported them.
 """
 import fcntl
 import hashlib
 import json
 import os
 from pathlib import Path
-import shlex
 import subprocess
 import sys
 import tempfile
@@ -32,10 +31,6 @@ import link  # noqa: E402  Keeper's own Link V1
 STATE = {'idle': 'idle', 'working': 'working', 'tool': 'tool', 'branching': 'working',
          'compacting': 'compacting', 'waiting': 'waiting', 'stopped': 'stopped',
          'interrupted': 'interrupted', 'ended': 'ended'}
-# The programs that are another presence's host. Only the program's own name counts.
-REACH = {'claude': 'spark', 'agy': 'prism', 'antigravity': 'prism', 'gemini': 'prism'}
-WRAPPERS = {'env', 'sudo', 'nice', 'nohup', 'time', 'timeout', 'command', 'exec', 'npx', 'bunx', 'pnpx'}
-SEPARATORS = {'|', '||', '&&', ';', '&', '(', ')', '|&'}
 POLL = .25
 NO_HOST_LINGER = 20.0
 
@@ -45,7 +40,7 @@ def reach_path(environ=None):
 
 
 def reach_enabled(environ=None):
-    """The second switch: may Keeper look at a shell call's program names to say whom he is reaching?"""
+    """The separate consent switch; it never grants tool-argument observation."""
     env = os.environ if environ is None else environ
     override = env.get('KEEPER_LINK_REACH', '').strip().lower()
     if override in {'1', 'on', 'true', 'yes'}:
@@ -62,43 +57,8 @@ def _digest(value):
     return hashlib.sha256(value.encode('utf-8')).hexdigest()
 
 
-def reaching_for(tool_input):
-    """The presence class a shell call is reaching, from the programs it runs, or None.
-
-    Adapter-level only: the result is a class name; the command itself goes nowhere.
-    """
-    command = None
-    if isinstance(tool_input, dict):
-        command = tool_input.get('command', tool_input.get('cmd'))
-    if isinstance(command, list):
-        words = [w for w in command if isinstance(w, str)]
-        if len(words) >= 3 and os.path.basename(words[0]) in {'bash', 'sh', 'zsh'} and words[1] in {'-c', '-lc'}:
-            command = words[2]
-        else:
-            command = ' '.join(shlex.quote(w) for w in words)
-    if not isinstance(command, str) or len(command) > 16384:
-        return None
-    try:
-        lexer = shlex.shlex(command, posix=True, punctuation_chars=True)
-        lexer.whitespace_split = True
-        tokens = list(lexer)
-    except ValueError:
-        tokens = command.split()
-    expect_program = True
-    for token in tokens:
-        if token in SEPARATORS:
-            expect_program = True
-            continue
-        if not expect_program:
-            continue
-        if '=' in token and not token.startswith('=') and token.split('=', 1)[0].isidentifier():
-            continue  # VAR=value before the program
-        name = os.path.basename(token)
-        if name in WRAPPERS or token.startswith('-') or token.replace('.', '', 1).isdigit():
-            continue  # sudo, timeout 30, env -i ... : the program comes after
-        if name in REACH:
-            return REACH[name]
-        expect_program = False
+def reaching_for(_tool_input):
+    """Legacy adapter entry: tool arguments are never permitted target evidence."""
     return None
 
 
@@ -212,17 +172,9 @@ def observe(data, payload, environ=None):
             record = json.loads((Path(data) / 'activity-face/sessions' / (key + '.json')).read_text())
         except (OSError, ValueError):
             record = {}
-        calls = mine.get('reach_calls') if isinstance(mine.get('reach_calls'), dict) else {}
-        call = payload.get('tool_use_id')
-        call_key = _digest(call) if isinstance(call, str) and 0 < len(call) <= 256 else None
-        if event == 'PreToolUse' and call_key and reach_enabled(env):
-            target = reaching_for(payload.get('tool_input'))
-            if target:
-                calls[call_key] = target
-        elif event == 'PostToolUse' and call_key:
-            calls.pop(call_key, None)
-        elif event in {'Stop', 'Interrupt', 'SessionEnd', 'SessionStart'}:
-            calls = {}
+        # Discard legacy inferred calls, including previously persisted facts.
+        # This adapter has no permitted host-level outgoing target evidence.
+        calls = {}
         state = STATE.get(record.get('state'))
         mine.update({'state': state, 'reach_calls': calls,
                      'tools': int(record.get('active_tool_count') or 0),
@@ -279,7 +231,7 @@ def beat(data, key, environ=None, *, poll=POLL, clock=time.time, sleep=time.slee
                     writer.end(now=now)
                     return _linger(writer, data, key, clock, sleep, env)
                 return 'off' if not on else 'ended'
-            facts = (mine.get('state'), mine.get('tools', 0), mine.get('branches', 0), tuple(mine.get('reaching', [])))
+            facts = (mine.get('state'), mine.get('tools', 0), mine.get('branches', 0), ())
             if facts[0] and facts != published:
                 writer.publish(facts[0], tools=facts[1], branches=facts[2], reaching=facts[3], now=now)
                 published, quiet_since = facts, now
@@ -319,8 +271,8 @@ def cli(argv, data, environ=None):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(argv[1] + '\n')
         if argv[1] == 'on':
-            print('Keeper reach on: while Link is on, he looks at the program names in a shell call (claude, agy, gemini)')
-            print('to say he is reaching Spark or Prism. Only the class is kept; the command is never stored or shared.')
+            print('Keeper reach on: outgoing threads require permitted host evidence.')
+            print('This Codex adapter supplies no outgoing target evidence; tool arguments are never read.')
         else:
             print('Keeper reach off: he never looks at tool arguments, and never says whom he is reaching.')
         return 0
