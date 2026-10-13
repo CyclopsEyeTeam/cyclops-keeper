@@ -68,12 +68,12 @@ class LauncherTests(unittest.TestCase):
 
     def test_flags_do_not_rewrite_normal_arguments_or_option_values(self):
         launch=self.launcher()
-        mode, args=launch.split_flags(['--keeper-side','-C','a project','-c','x="a b"',
+        mode, args=launch.split_flags(['--keeper','side','-C','a project','-c','x="a b"',
                                       '-m','--keeper','--','--keeper-top'])
         self.assertEqual(mode,'side')
         self.assertEqual(args,['-C','a project','-c','x="a b"','-m','--keeper','--','--keeper-top'])
-        self.assertEqual(launch.split_flags(['--keeper','--keeper']),('focus',[]))
-        with self.assertRaises(ValueError): launch.split_flags(['--keeper-side','--keeper-top'])
+        with self.assertRaises(ValueError): launch.split_flags(['--keeper','--keeper'])
+        with self.assertRaises(ValueError): launch.split_flags(['--keeper','side','--keeper'])
         self.assertEqual(launch.split_flags(['update']), (None,['update']))
 
     def test_wrong_launch_cannot_attach_or_leak_received_descriptors(self):
@@ -141,9 +141,9 @@ class TerminalLifecycleTests(unittest.TestCase):
                 output_until(b'Session: unattached')
                 self.assertNotEqual(termios.tcgetattr(slave),original)
                 fcntl.ioctl(slave,termios.TIOCSWINSZ,struct.pack('HHHH',10,40,0,0))
-                output_until(b'Session: unattached')
+                output_until(b'? U T:0 B:0')
                 link.atomic(path,{'v':1,'owner':owner,'session':'ab'*32,'project_fd':None})
-                frame=output_until(b'Session: attached')
+                frame=output_until(b'? A T:0 B:0')
                 last=frame.decode().split('\x1b[H')[-1].split('\x1b[0m')[0]
                 self.assertEqual(len(last.split('\n')),10)
                 self.assertTrue(all(len(row.replace('\x1b[K','').replace('\r',''))<=39 for row in last.split('\n')))
@@ -199,7 +199,7 @@ class ReviewRegressionTests(unittest.TestCase):
 
     def test_wrapper_refuses_to_overwrite_an_existing_codex_function(self):
         result=subprocess.run(['bash','--noprofile','--norc','-c',
-             'codex() { printf original; }; source "$1/keeper-shell.sh"; codex',
+             'codex() { printf original; }; source "$1/plugins/cyclops-keeper/scripts/integration.bash"; codex',
              '_',str(ROOT)],capture_output=True,text=True)
         self.assertEqual(result.stdout,'original')
 
@@ -245,7 +245,7 @@ class SupervisorTests(unittest.TestCase):
             env={**os.environ,'KEEPER_CODEX':str(fake),'KEEPER_PLUGIN_ROOT':str(SCRIPTS.parent),
                  'XDG_RUNTIME_DIR':str(root),'PATH':str(root)+os.pathsep+os.environ['PATH']}
             master,slave=pty.openpty();original=termios.tcgetattr(slave)
-            child=subprocess.Popen([str(ROOT/'codex-keeper'),'--keeper','-m','a model','--','--keeper-top'],
+            child=subprocess.Popen([sys.executable,str(SCRIPTS/'launcher.py'),'--keeper','-m','a model','--','--keeper-top'],
                                    stdin=slave,stdout=slave,stderr=slave,env=env)
             data=b'';deadline=time.monotonic()+4
             try:
@@ -261,7 +261,7 @@ class SupervisorTests(unittest.TestCase):
                     while link.alive(codex) and time.monotonic()<until:time.sleep(.05)
                     self.assertFalse(link.alive(codex),'Codex became an orphan after launcher death')
                 else:
-                    duplicate=subprocess.run([str(ROOT/'codex-keeper'),'--keeper'],stdin=slave,
+                    duplicate=subprocess.run([sys.executable,str(SCRIPTS/'launcher.py'),'--keeper'],stdin=slave,
                                              capture_output=True,env=env,timeout=3)
                     self.assertEqual(duplicate.returncode,2)
                     self.assertIn(b'already owns this terminal',duplicate.stderr)

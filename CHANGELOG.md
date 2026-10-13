@@ -1,5 +1,47 @@
 # Changelog
 
+## 0.5.0 — Simple terminal presence
+
+- One installation command: `./install.sh` installs both the plugin and terminal commands.
+- Only `codex --keeper side`, `codex --keeper top`, and `codex --keeper` launch Keeper.
+- Side and top stay inside the current terminal; bare `--keeper` requests a separate fullscreen GNOME/X11 terminal.
+- Keep normal keyboard input with Codex when side/top opens, including user selection during startup.
+- Retire the standalone launchers, selection menu, browser runtime, optional setup mode and old flag aliases.
+- Retire Link broadcasting and peer overlays; preserve older consent files without acting on them.
+- Uninstall also removes the managed Bash startup block; ordinary Codex uses its normal executable directly.
+- Read complete structured Codex status during uninstall; unexpected schemas stop removal without a false success claim.
+- Complete 200 ms decorative deadline scheduling with immediate public-state and ownership invalidation.
+- Avoid continuous metrics collection during ordinary use; CPU metrics use the process CPU clock.
+- Preserve the woven artwork, exact argument forwarding, launch attachment, terminal restoration and scoped pane ownership.
+- Prepared as an unpublished release candidate; resource acceptance remains HOLD. See `docs/VALIDATION.md` for current evidence and platform limits.
+
+## Historical development
+
+## Local 0.4.4 paced drawing experiment — 13 October 2026
+
+- Includes Responsive Presence V1 and the existing observer delivery repair.
+- Applies a 200 ms decorative body interval with immediate public-state, identity, size and preference invalidation; retains original animation phase and native input/feed polling.
+- Owner stopped further tests and requested this local update. Final repeatability and visual acceptance remain unresolved; historical HOLD and negative evidence are preserved.
+
+
+## 0.4.4 — Responsive Presence V1, isolated and unpromoted
+
+- Geometry-based full, compact, miniature and living-eye forms.
+- Codex-first side/top allocation, supervised suspension and stable return.
+- Owner-fenced presentation preferences persist across recreation.
+- Small attachment states/counts stay visible; peer artwork yields to Keeper in small/micro forms.
+- Independent review corrections verified; final Python suite149/150 with the unchanged intermittent observer-concurrency failure.
+- Promotion held for observer correctness and mixed resource measurements. No live installation or activation.
+
+## 0.4.3 — Local usability update
+
+- `codex --keeper top` and `codex --keeper side` select the existing owned tmux layouts; older flag spellings still work.
+- `codex --keeper` requests a fullscreen separate GNOME/X11 Keeper window.
+- `./install.sh --shell` explicitly installs a reversible Bash startup block for commands from any project folder.
+- Packaged launch entry points, `keeper start` view selection and a read-only `keeper doctor` check.
+- Setup guidance distinguishes installation, hook trust, recorded activity and launch attachment.
+- No changes to observer event semantics, identity, Link/Reach or sound consent.
+
 ## 0.4.2 Hybrid Launcher V1 candidate
 
 - Preserve the GNOME/X11 separate-window route and add owned tmux side/top layouts.

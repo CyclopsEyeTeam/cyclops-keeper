@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Balanced and Focus terminal compositions for the local Keeper observer."""
 import argparse
+from copy import deepcopy
 import hashlib
 import json
 import math
@@ -18,6 +19,9 @@ import tty
 sys.dont_write_bytecode = True
 from activity import EVENTS, LABELS, TOOL_KINDS, default_data, public_snapshot
 from terminal_art import draw_keeper
+from responsive import detail
+from responsive_expression import micro, miniature, INDICATORS
+import presentation_state
 
 KEY_PATTERN = set('0123456789abcdef')
 
@@ -91,6 +95,11 @@ def render(snapshot, width, height, blink=False, stale=False, *, mode='balanced'
     if current['active_subagents'] and width>=32:status+=f" / {len(current['active_subagents'])} BRANCH{'ES' if len(current['active_subagents'])!=1 else ''}"
     if width>=50:status+=f" / {'CALM' if calm else 'C:CALM'} {'REDUCED' if reduced_motion else 'R:REDUCED'}  Q:EXIT"
     status=status[:width].ljust(width)
+    if detail(width,height) in {'micro','insufficient'}:
+        return micro(current,width,height,now,unicode=unicode,reduced_motion=reduced_motion,calm=calm,colour=colour)
+    if not unicode and detail(width,height)=='small':
+        return miniature(current,width,height,status,now,unicode=False,reduced_motion=reduced_motion,
+                         calm=calm,colour=colour,truecolour=truecolour,mode=mode)
     if unicode:
         return draw_keeper(current,width,height,status,mode=mode,now=now,
                            calm=calm,reduced_motion=reduced_motion,blink=blink,
@@ -307,7 +316,7 @@ def colour_code(rgb,truecolour,stale,calm=False):
     return f'\x1b[38;5;{16+36*r+6*g+b}m'
 
 
-def launch_selection(path):
+def launch_selection(path, *, include_identity=False):
     # The sentinel is deliberately an invalid/missing public record selection;
     # it never delegates to the renderer's ordinary latest-session selection.
     from launcher_link import read_attachment
@@ -330,16 +339,74 @@ def launch_selection(path):
                     continue
                 os.fchdir(fd)
             finally: os.close(fd)
-        return value.get('session') or '0'*64, bool(value.get('session'))
-    return '0'*64,False
+        result=(value.get('session') or '0'*64, bool(value.get('session')))
+        identity=(value.get('owner'),value.get('generation',0))
+        return (*result,identity) if include_identity else result
+    result=('0'*64,False)
+    return (*result,None) if include_identity else result
+
+
+class RenderCache:
+    """One frozen body only. Observation and attachment still refresh each loop."""
+    def __init__(self):
+        self.key=None;self.body=None
+
+    def frame(self,record,width,height,**options):
+        normalized=_record(record,options.get('stale',False))
+        frozen=options.get('reduced_motion',False) or normalized['stale'] or normalized['state']=='unknown'
+        key=None
+        if frozen:
+            settings={name:value for name,value in options.items() if name not in {'now','blink'}}
+            key=(json.dumps(normalized,sort_keys=True,separators=(',',':')),width,height,json.dumps(settings,sort_keys=True))
+            if key==self.key:return self.body
+        body=render(record,width,height,**options)
+        self.key=key;self.body=body if frozen else None
+        return body
+
+
+
+class PacedRenderCache:
+    """One retained body, with immediate invalidation for observed public facts."""
+    def __init__(self, interval=.2):
+        self.interval=interval
+        self.cache=RenderCache()
+        self.key=None
+        self.body=None
+        self.started=None
+        self.animated=False
+
+    def frame(self, record, width, height, *, attachment_identity=None, **options):
+        settings={name:value for name,value in options.items() if name!='now'}
+        # Include the public session/sequence and validated owner/generation.
+        # Blink, resize and preference changes are also immediate dirty frames.
+        identity=json.dumps(attachment_identity,sort_keys=True,separators=(',',':'))
+        key=(record,width,height,settings,identity)
+        dirty=key != self.key
+        if dirty:
+            normalized=_record(record, options.get('stale', False))
+            self.animated=not (options.get('reduced_motion', False) or normalized['stale']
+                               or normalized['state']=='unknown')
+        now=time.monotonic()
+        if (not dirty and self.started is not None
+                and now-self.started<self.interval):
+            return self.body
+        body=self.cache.frame(record,width,height,**options)
+        # Keep one independent snapshot: in-place caller changes must remain
+        # detectable without serialising unchanged facts on every input poll.
+        if dirty:self.key=deepcopy(key)
+        self.body=body
+        self.started=now
+        return body
+
+    def wait_timeout(self, cadence):
+        """Keep input/feed polling live and wake on the decorative deadline."""
+        if (not self.animated or self.started is None or self.interval <= 0
+                or cadence >= self.interval):
+            return cadence
+        return min(cadence, max(0.0, self.started+self.interval-time.monotonic()))
 
 
 def main():
-    if sys.argv[1:2]==['link']:
-        # ./keeper link on | off | status: Keeper's own Cyclops Link switch
-        from keeper_link import cli
-        data=Path(os.environ['KEEPER_DATA']) if os.environ.get('KEEPER_DATA') else default_data()
-        raise SystemExit(cli(sys.argv[2:],data))
     parser=argparse.ArgumentParser(description='Cyclops Keeper local Codex presence. q / Escape exits; c and r change motion.')
     parser.add_argument('mode',nargs='?',choices=['focus'],help='fill the terminal with Keeper Focus')
     parser.add_argument('--data',type=Path,default=default_data())
@@ -360,7 +427,9 @@ def main():
     truecolour=os.environ.get('COLORTERM') in {'truecolor','24bit'}
     colour=not args.no_colour and 'NO_COLOR' not in os.environ and os.environ.get('TERM')!='dumb'
     mode='focus' if args.mode=='focus' else 'balanced'
-    calm=args.calm;reduced_motion=args.reduced_motion
+    preferences=presentation_state.load(args.attachment) if args.attachment else {}
+    calm=args.calm or preferences.get('calm',False)
+    reduced_motion=args.reduced_motion or preferences.get('reduced_motion',False)
     attrs=termios.tcgetattr(sys.stdin) if not args.once else None
     old_handler=signal.getsignal(signal.SIGTERM)
     measurements={'frames':0,'cpu_ms':0.0,'wall_started':time.perf_counter(),
@@ -369,11 +438,6 @@ def main():
                   'mode':mode,'calm':calm,'reduced_motion':reduced_motion}
     def terminate(_sig,_frame):raise KeyboardInterrupt
     try:
-        import link_view
-        watch=link_view.Watch(args.data)
-    except Exception:
-        link_view=watch=None
-    try:
         if not args.once:
             signal.signal(signal.SIGTERM,terminate);tty.setcbreak(sys.stdin)
             sys.stdout.write('\x1b[?1049h\x1b[?25l\x1b[2J');sys.stdout.flush()
@@ -381,10 +445,12 @@ def main():
                 from launcher_link import atomic, process_identity
                 atomic(args.attachment.with_suffix('.ready'),process_identity(os.getpid()))
         last_frame=None
+        body_cache=PacedRenderCache()
         while True:
             attached=True
+            attachment_identity=None
             if args.attachment:
-                try: args.session,attached=launch_selection(args.attachment)
+                try: args.session,attached,attachment_identity=launch_selection(args.attachment,include_identity=True)
                 except (OSError,ValueError): break
             sessions=public_snapshot(args.data,session=args.session)['sessions']
             current=next((s for s in sessions if s['session']==args.session),None) if args.session else next(iter(sessions),None)
@@ -395,32 +461,34 @@ def main():
             measurements['max_subagents']=max(measurements['max_subagents'],len(current.get('active_subagents',[])) if current else 0)
             size=shutil.get_terminal_size((80,24))
             width=max(1,size.columns-1);height=max(1,size.lines)
-            begin=time.perf_counter()
-            frame=render(current or 'unknown',width,height,
+            begin=time.process_time() if args.metrics else None
+            frame=body_cache.frame(current or 'unknown',width,height,
+                         attachment_identity=attachment_identity,
                          blink=not reduced_motion and state in {'idle','stopped'} and time.time()%6.5<.14,
                          stale=stale,mode=mode,now=time.time(),calm=calm,
                          reduced_motion=reduced_motion,unicode=unicode,
                          colour=colour and not args.once,truecolour=truecolour)
-            if watch is not None:
-                # Cyclops Link: Spark and Prism in their own looks at their seats, when Keeper is linked
-                try:
-                    frame=link_view.overlay(frame,width,height,watch.view(current['session'] if current else None),
-                                            watch.sheets,unicode=unicode,colour=colour and not args.once,
-                                            truecolour=truecolour,now=time.time(),reduced_motion=reduced_motion)
-                except Exception:
-                    pass
-            if args.attachment:
+            if args.attachment and detail(width,height) in {'full','compact','small'} and width>=18:
                 message=('Session: attached / '+LABELS.get(state,LABELS['unknown'])+(' / OLD SIGNAL' if stale else '')) if attached else 'Session: unattached — waiting for this launch’s trusted Keeper hook'
+                if detail(width,height)=='small':
+                    # Put the state first so the attachment prefix cannot erase
+                    # distinctions when the last row is narrow or motion is off.
+                    shown='unknown' if stale or not attached else state
+                    tools=len(current.get('active_tools',[])) if current else 0
+                    branches=len(current.get('active_subagents',[])) if current else 0
+                    counts=f'T:{tools}'+('+' if tools>2 else '')+f' B:{branches}'+('+' if branches>1 else '')
+                    message=INDICATORS[shown]+(' A ' if attached else ' U ')+counts
                 frame=frame.rsplit('\n',1)[0]+'\n'+message[:width].ljust(width) if height>1 else message[:width].ljust(width)
-            cost=(time.perf_counter()-begin)*1000
-            measurements['frames']+=1;measurements['cpu_ms']+=cost
-            measurements['samples'].append(cost)
-            if len(measurements['samples'])>600:measurements['samples'].pop(0)
-            timestamp=time.perf_counter()
-            if measurements['last_update'] is not None:
-                measurements['updates'].append((timestamp-measurements['last_update'])*1000)
-                if len(measurements['updates'])>600:measurements['updates'].pop(0)
-            measurements['last_update']=timestamp
+            if args.metrics:
+                cost=(time.process_time()-begin)*1000
+                measurements['frames']+=1;measurements['cpu_ms']+=cost
+                measurements['samples'].append(cost)
+                if len(measurements['samples'])>600:measurements['samples'].pop(0)
+                timestamp=time.perf_counter()
+                if measurements['last_update'] is not None:
+                    measurements['updates'].append((timestamp-measurements['last_update'])*1000)
+                    if len(measurements['updates'])>600:measurements['updates'].pop(0)
+                measurements['last_update']=timestamp
             if args.once:
                 print(frame)
                 break
@@ -429,12 +497,14 @@ def main():
                 output='\x1b[H'+''.join(row+'\x1b[K\n' for row in rows[:-1])+rows[-1]+'\x1b[K\x1b[0m'
                 sys.stdout.write(output);sys.stdout.flush();last_frame=frame
             cadence=.45 if reduced_motion else .25 if calm or state in {'idle','waiting','unknown','stopped'} else .09
-            ready=select.select([sys.stdin],[],[],cadence)[0]
+            ready=select.select([sys.stdin],[],[],body_cache.wait_timeout(cadence))[0]
             if ready:
                 key=os.read(sys.stdin.fileno(),1)
                 if key in {b'q',b'Q',b'\x1b',b'\x03'}:break
                 if key in {b'c',b'C'}:calm=not calm;last_frame=None
                 if key in {b'r',b'R'}:reduced_motion=not reduced_motion;last_frame=None
+                if args.attachment and key in {b'c',b'C',b'r',b'R'}:
+                    presentation_state.save(args.attachment,calm,reduced_motion)
     except KeyboardInterrupt:
         pass
     finally:
@@ -453,7 +523,7 @@ def main():
                        'p95_render_ms':round(sorted(sample)[min(len(sample)-1,int(len(sample)*.95))],5) if sample else 0,
                        'median_update_ms':round(statistics.median(updates),2) if updates else None,
                        'p95_update_ms':round(sorted(updates)[min(len(updates)-1,int(len(updates)*.95))],2) if updates else None,
-                       'measurement':'renderer CPU and observed loop interval; not terminal presentation FPS'})
+                       'measurement':'composition-loop CPU including cache hits, and polling interval; not terminal presentation FPS'})
         print(json.dumps(report,sort_keys=True),file=sys.stderr)
 
 

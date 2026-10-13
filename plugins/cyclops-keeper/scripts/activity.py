@@ -110,7 +110,12 @@ def _active_state(tools, agents, current_turn_key):
     return 'working'
 
 
+class ObservationRejected(Exception):
+    """A safe reason code, never input values or filesystem paths."""
+
+
 def update(data, payload):
+    """Cooperating writer transaction. CLI wrapper owns its deadline; direct callers must bound their own process."""
     event = payload.get('hook_event_name')
     session = payload.get('session_id')
     turn = payload.get('turn_id')
@@ -130,24 +135,21 @@ def update(data, payload):
     lock_path = directory / (key + '.lock')
     fd = os.open(lock_path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
     with os.fdopen(fd, 'r+') as lock:
-        deadline = time.monotonic() + 0.8
-        while True:
-            try:
-                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                break
-            except BlockingIOError:
-                if time.monotonic() >= deadline:
-                    return
-                time.sleep(0.005)
+        # Let the kernel queue contenders rather than repeatedly racing a
+        # nonblocking lock and silently dropping after an arbitrary .8 seconds.
+        # hook.py bounds the complete observation within the existing 3s runner.
+        fcntl.flock(lock, fcntl.LOCK_EX)
         target = directory / (key + '.json')
         try:
             if target.is_symlink() or target.stat().st_size > MAX_RECORD_BYTES:
-                return
+                raise ObservationRejected('unsafe_record')
             old = json.loads(target.read_text())
             if not isinstance(old, dict) or old.get('schema') != PROTOCOL:
-                old = {}
-        except (OSError, ValueError):
+                raise ObservationRejected('invalid_record')
+        except FileNotFoundError:
             old = {}
+        except (ValueError, UnicodeError):
+            raise ObservationRejected('invalid_record') from None
 
         sequence = old.get('sequence', 0)
         if not isinstance(sequence, int) or sequence < 0:
@@ -308,6 +310,23 @@ def update(data, payload):
                 os.unlink(name)
             except FileNotFoundError:
                 pass
+
+    # All replacements have fsynced content before entering the namespace.
+    # A later replacement therefore contains a complete durable descendant of
+    # this transaction; syncing the directory can safely happen after unlock.
+    # Keep the acknowledgement after this barrier, outside the serialized work.
+    # Recursive mkdir can create bindings above the sessions leaf. Establish
+    # every ancestor link on this filesystem before acknowledging, even if a
+    # concurrent writer happened to create it first. No initialization cache.
+    parent=directory.resolve()
+    while True:
+        directory_fd=os.open(parent,os.O_RDONLY|os.O_DIRECTORY)
+        try:os.fsync(directory_fd)
+        finally:os.close(directory_fd)
+        if parent.parent==parent or parent.stat().st_dev!=parent.parent.stat().st_dev:
+            break
+        parent=parent.parent
+    return {'status':'accepted','session':key,'sequence':sequence}
 
 
 def _public_active(raw, with_kind=False):

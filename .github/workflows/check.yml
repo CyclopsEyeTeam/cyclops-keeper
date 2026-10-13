@@ -1,0 +1,33 @@
+name: Terminal checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        python: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install terminal test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tmux gnome-terminal xvfb xauth xclip x11-utils libxtst6 dbus-x11 ripgrep
+      - name: Run checks on an isolated X11 display
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+          KEEPER_CI_SCRATCH: ${{ runner.temp }}/keeper-ci
+        run: |
+          mkdir -p "$KEEPER_CI_SCRATCH/tmp" "$KEEPER_CI_SCRATCH/evidence"
+          export TMPDIR="$KEEPER_CI_SCRATCH/tmp"
+          export KEEPER_TEST_EVIDENCE_DIR="$KEEPER_CI_SCRATCH/evidence"
+          xvfb-run -a bash ./tools/check.sh

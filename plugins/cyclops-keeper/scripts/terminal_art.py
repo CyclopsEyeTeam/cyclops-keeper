@@ -5,6 +5,9 @@ Every invocation owns a stationary route derived from its complete opaque key.
 """
 import hashlib
 import math
+from functools import lru_cache
+from responsive import detail
+from responsive_expression import micro, miniature
 
 # Sea glass membrane, lavender weave, pale gold aperture. Roles carry colour,
 # never success, failure, or a guess about the meaning of an invocation.
@@ -15,9 +18,24 @@ COLOURS = ((83, 118, 136), (91, 169, 181), (158, 156, 210),
 BITS = ((1, 8), (2, 16), (4, 32), (64, 128))
 
 
+def _basis_samples(count, until):
+    for i in range(1,count+1):
+        fraction=i/count
+        u=fraction*until;v=1-u
+        yield (v**3,3*v*v*u,3*v*u*u,u**3,fraction)
+
+
+@lru_cache(maxsize=64)
+def _complete_basis(count):
+    # Only time-independent sampling coefficients, never poses, keys or
+    # pixels. Callers bypass the cache above256samples and for gestures.
+    return tuple(_basis_samples(count,1))
+
+
 class Surface:
     def __init__(self, columns, rows):
         self.columns, self.rows = columns, rows
+        self.glyphs = {}
         self.masks = [[0] * columns for _ in range(rows)]
         self.roles = [[0] * columns for _ in range(rows)]
         self.priorities = [[-1] * columns for _ in range(rows)]
@@ -33,24 +51,38 @@ class Surface:
             self.priorities[row][col] = priority
 
     def line(self, a, b, role=1, priority=1, dash=0):
-        distance=math.hypot(b[0]-a[0], b[1]-a[1])
+        # Raster a segment in one batch. Keep the original samples, floating
+        # arithmetic, rounding and priority order; only Python dispatch and
+        # repeated buffer/coordinate lookups are removed.
+        dx,dy=b[0]-a[0],b[1]-a[1]
+        distance=math.hypot(dx,dy)
         count=max(1, math.ceil(distance * 2))
+        masks,roles,priorities=self.masks,self.roles,self.priorities
+        width,height=self.columns*2,self.rows*4
+        ax,ay=a
         for i in range(count+1):
             if dash and int(distance * i / count / dash) % 2:
                 continue
             u=i/count
-            self.point(a[0]+(b[0]-a[0])*u, a[1]+(b[1]-a[1])*u, role, priority)
+            x,y=round(ax+dx*u),round(ay+dy*u)
+            if not (0 <= x < width and 0 <= y < height):
+                continue
+            row,col=y//4,x//2
+            masks[row][col] |= BITS[y%4][x%2]
+            if priority >= priorities[row][col]:
+                roles[row][col]=role
+                priorities[row][col]=priority
 
     def curve(self, points, role=1, priority=1, dash=0, until=1):
         a,b,c,d=points
         length=sum(math.hypot(q[0]-p[0],q[1]-p[1]) for p,q in zip(points,points[1:]))
         count=max(8, math.ceil(length * 1.5))
         prior=a
-        for i in range(1,count+1):
-            u=i/count*until; v=1-u
-            point=(v**3*a[0]+3*v*v*u*b[0]+3*v*u*u*c[0]+u**3*d[0],
-                   v**3*a[1]+3*v*v*u*b[1]+3*v*u*u*c[1]+u**3*d[1])
-            if not dash or int(i/count*length/dash) % 2 == 0:
+        samples=_complete_basis(count) if until==1 and count<=256 else _basis_samples(count,until)
+        for wa,wb,wc,wd,fraction in samples:
+            point=(wa*a[0]+wb*b[0]+wc*c[0]+wd*d[0],
+                   wa*a[1]+wb*b[1]+wc*c[1]+wd*d[1])
+            if not dash or int(fraction*length/dash) % 2 == 0:
                 self.line(prior,point,role,priority)
             prior=point
         return prior
@@ -64,7 +96,7 @@ class Surface:
             self.line(prior,point,role,priority)
             prior=point
 
-    def frame(self, status, *, colour=False, truecolour=False, dim=False, calm=False):
+    def frame(self, status, *, colour=False, truecolour=False, dim=False, calm=False, unicode=True):
         factor=.48 if dim else .72 if calm else 1
         codes=[]
         for rgb in COLOURS:
@@ -75,12 +107,14 @@ class Surface:
                 r,g,b=[round(v/255*5) for v in values]
                 codes.append(f"\x1b[38;5;{16+36*r+6*g+b}m")
         output=[]
-        for masks,roles in zip(self.masks,self.roles):
+        for row_index,(masks,roles) in enumerate(zip(self.masks,self.roles)):
             row=[];prior=None
-            for mask,role in zip(masks,roles):
+            for col_index,(mask,role) in enumerate(zip(masks,roles)):
                 if colour and mask and role != prior:
                     row.append(codes[role]);prior=role
-                row.append(chr(0x2800+mask) if mask else ' ')
+                glyph=(chr(0x2800+mask) if unicode else ('|' if mask & 0x47 else '.')) if mask else ' '
+                if self.glyphs:glyph=self.glyphs.get((row_index,col_index),glyph)
+                row.append(glyph)
             if colour:row.append("\x1b[0m")
             output.append(''.join(row))
         output.append((codes[10] if colour else '')+status+("\x1b[0m" if colour else ''))
@@ -90,6 +124,12 @@ class Surface:
 def draw_keeper(record, columns, rows, status, *, mode='balanced', now=0,
                 calm=False, reduced_motion=False, blink=False, colour=False,
                 truecolour=False):
+    level=detail(columns,rows)
+    if level in {'micro','insufficient'}:
+        return micro(record,columns,rows,now,unicode=True,reduced_motion=reduced_motion,calm=calm,colour=colour)
+    if level=='small':
+        return miniature(record,columns,rows,status,now,colour=colour,truecolour=truecolour,
+                         calm=calm,reduced_motion=reduced_motion,mode=mode)
     surface=Surface(columns,max(0,rows-1))
     if columns < 3 or rows < 3:
         return surface.frame(status,colour=colour,truecolour=truecolour)
@@ -115,14 +155,15 @@ def draw_keeper(record, columns, rows, status, *, mode='balanced', now=0,
     # The asymmetry is the signature: a high open crown on the right, a
     # membrane gathered around one aperture, then loose downward filaments.
     crown=(112,-160)
-    for i in range(9):
-        u=i/8
+    strands=9 if level=='full' else 4
+    for i in range(strands):
+        u=i/(strands-1)
         curve([crown,(-18+u*72,-125-u*12),(-141+u*36,-36+u*23),(-39+u*63,64)],
               1 if i%3 else 2,1)
         curve([crown,(145-u*24,-82+u*24),(74-u*18,50-u*12),(-24+u*39,64)],
               2 if i%3 else 1,1)
     # Fine cross-weave remains lighter than the aperture and crown.
-    for i in range(5):
+    for i in range(5 if level=='full' else 2):
         y=-90+i*25
         curve([(-55-i*6,y),(0,y-30),(58,y+5),(93-i*11,y-24)],0,0,dash=2.7)
     line((91,-150),(135,-181),3,3)
@@ -135,7 +176,8 @@ def draw_keeper(record, columns, rows, status, *, mode='balanced', now=0,
            ((-22,64),(-57,111),(-38,171),(-73,216)),
            ((-8,61),(13,106),(-21,156),(-22,208)),
            ((12,61),(47,106),(27,155),(54,185))]
-    for i,points in enumerate(tails):
+    for i,points in enumerate(tails if level=='full' else tails[:2]):
+        if level=='compact':points=tuple((x,y*.78) for x,y in points)
         curve(points,2 if i%2 else 1,1,dash=0 if i<2 else 2.5,
               until=.43 if state=='interrupted' and i==3 else 1)
     if state=='interrupted':

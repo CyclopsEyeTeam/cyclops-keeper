@@ -21,17 +21,14 @@ import time
 sys.dont_write_bytecode=True
 import launcher_link as attachment
 from launcher import child_guard,project_directory,safe_runtime
+from responsive import allocate, PresenceGate, CODEX_FLOOR
 
-MIN_COLUMNS=60
-MIN_ROWS=20
 FORWARD_ENV=('CODEX_HOME','PLUGIN_DATA','KEEPER_DATA','XDG_CONFIG_HOME','XDG_STATE_HOME',
-             'CYCLOPS_LINK_DIR','KEEPER_LINK','KEEPER_LINK_REACH','NO_COLOR','COLORTERM','LANG','LC_ALL')
+             'NO_COLOR','COLORTERM','LANG','LC_ALL')
 
 
-def validate_size(mode,columns,rows):
-    needed=(96,20) if mode=='side' else (60,35)
-    if columns<needed[0] or rows<needed[1]:
-        raise ValueError(f'Keeper {mode} needs at least {needed[0]} columns and {needed[1]} rows; use --keeper for a separate window.')
+def companion_size(mode, columns, rows):
+    return allocate(mode, columns, rows)
 
 
 def tty_lock(runtime):
@@ -122,8 +119,6 @@ def restore_tty(attrs):
 
 def supervise(mode,argv,real_codex,plugin,parent=None):
     ctx=Context.inspect()
-    source=ctx.panes()[ctx.source]
-    validate_size(mode,source['width'],source['height'])
     runtime=safe_runtime();lock=tty_lock(runtime)
     instance=Path(tempfile.mkdtemp(prefix='keeper-',dir=runtime))
     directory=os.open(instance,os.O_RDONLY|os.O_DIRECTORY)
@@ -131,13 +126,17 @@ def supervise(mode,argv,real_codex,plugin,parent=None):
     path=instance/'attachment.json';token=secrets.token_hex(32)
     owner=attachment.process_identity(os.getpid())
     state={'v':1,'owner':owner,'session':None,'project_fd':None,'generation':0,
-           'tmux':{'socket':ctx.socket,'server':ctx.server,'source':ctx.source,'window':ctx.window,'keeper':None,'focus_requested':False}}
+           'tmux':{'socket':ctx.socket,'server':ctx.server,'source':ctx.source,'window':ctx.window,'keeper':None,'initial_ready_confirmed':False}}
     attachment.atomic(path,state)
     attrs=termios.tcgetattr(0);old_handlers={};stop=[None]
     for sig in (signal.SIGTERM,signal.SIGHUP,signal.SIGINT):
         old_handlers[sig]=signal.getsignal(sig)
         signal.signal(sig,lambda number,_:stop.__setitem__(0,number) if number!=signal.SIGINT else None)
+    old_handlers[signal.SIGWINCH]=signal.getsignal(signal.SIGWINCH)
+    signal.signal(signal.SIGWINCH,lambda *_:layout_dirty.__setitem__(0,True))
     child=None;project_fd=None;pane=None;pane_identity=None
+    enabled=True;ready_confirmed=False
+    gate=PresenceGate();layout_dirty=[True]
     try:
         with socket.socket(socket.AF_UNIX,socket.SOCK_DGRAM) as broker:
             broker.setsockopt(socket.SOL_SOCKET,socket.SO_PASSCRED,1);broker.bind(address)
@@ -148,19 +147,32 @@ def supervise(mode,argv,real_codex,plugin,parent=None):
             state['codex']=attachment.process_identity(child.pid);attachment.atomic(path,state)
             unset=[item for key in FORWARD_ENV if key not in os.environ for item in ['-u',key]]
             command='exec '+shlex.join(['/usr/bin/env',*unset,sys.executable,str(plugin/'scripts/terminal.py'),'--attachment',str(path)])
-            options=['-b','-v','-l','14'] if mode=='top' else ['-h','-l','35']
             environment=[]
             for key in FORWARD_ENV:
                 # Avoid inheriting an old server's different consent or data root.
                 if key in os.environ:environment+=['-e',key+'='+os.environ[key]]
-            pane=ctx.call('split-window','-d','-t',ctx.source,*options,'-c',str(project_directory(argv)),
-                          *environment,'-P','-F','#{pane_id}',command)
-            info=ctx.pane(pane);pane_identity=attachment.process_identity(info['pid']) if info else None
-            if not pane_identity:raise ValueError('Keeper pane did not start.')
-            ctx.call('set-option','-p','-t',pane,'@keeper_owner',token)
-            ctx.call('set-option','-p','-t',pane,'remain-on-exit','off')
-            state['tmux']['keeper']=pane;attachment.atomic(path,state)
-            focused=False;focus_deadline=time.monotonic()+8;next_layout=0
+
+            def create_companion(desired):
+                nonlocal pane, pane_identity
+                options=['-b','-v','-l',str(desired)] if mode=='top' else ['-h','-l',str(desired)]
+                try:
+                    new_pane=ctx.call('split-window','-d','-t',ctx.source,*options,
+                                      '-c',str(project_directory(argv)),*environment,
+                                      '-P','-F','#{pane_id}',command)
+                except ValueError as error:
+                    # A terminal may shrink between measurement and split. Retry
+                    # only that geometry race; other failures remain explicit.
+                    if 'no space for new pane' in str(error):return False
+                    raise
+                pane=new_pane
+                info=ctx.pane(pane);pane_identity=attachment.process_identity(info['pid']) if info else None
+                if not pane_identity:raise ValueError('Keeper pane did not start.')
+                ctx.call('set-option','-p','-t',pane,'@keeper_owner',token)
+                ctx.call('set-option','-p','-t',pane,'remain-on-exit','off')
+                state['tmux']['keeper']=pane;attachment.atomic(path,state)
+                return True
+
+            next_layout=0
             while child.poll() is None and not stop[0]:
                 if parent and not attachment.alive(parent):stop[0]=signal.SIGTERM;break
                 try:
@@ -172,31 +184,59 @@ def supervise(mode,argv,real_codex,plugin,parent=None):
                         if old_fd is not None:os.close(old_fd)
                 except socket.timeout:pass
                 now=time.monotonic()
-                if not focused and path.with_suffix('.ready').exists():
-                    if ctx.owned(pane,pane_identity,token):ctx.call('select-pane','-t',pane)
-                    state['tmux']['focus_requested']=True;attachment.atomic(path,state)
-                    focused=True
-                elif not focused and now>focus_deadline:focused=True
-                if now>=next_layout:
-                    next_layout=now+.5
-                    if not ctx.owned(pane,pane_identity,token):continue
-                    panes=ctx.panes();host=panes.get(ctx.source);companion=panes.get(pane)
-                    if not host or not companion:continue
-                    width=host['width']+(companion['width']+1 if mode=='side' else 0)
-                    height=host['height']+(companion['height']+1 if mode=='top' else 0)
-                    try:validate_size(mode,width,height)
-                    except ValueError:
-                        close_companion(ctx,pane,pane_identity,token,path.with_suffix('.ready'))
-                        print('Keeper: companion closed after resize; Codex continues. Use --keeper for a separate window.',file=sys.stderr)
+                if not ready_confirmed and pane:
+                    try:ready=json.loads(path.with_suffix('.ready').read_text())
+                    except (OSError,ValueError):ready=None
+                    if (ready==pane_identity and attachment.alive(ready)
+                            and ctx.owned(pane,pane_identity,token)):
+                        # Detached creation preserves normal Codex typing and
+                        # any pane selection made by the user during startup.
+                        state['tmux']['initial_ready_confirmed']=True;attachment.atomic(path,state)
+                        ready_confirmed=True
+                if layout_dirty[0] or now>=next_layout:
+                    layout_dirty[0]=False
+                    next_layout=now+1.0
+                    if not enabled:continue
+                    if pane and not ctx.owned(pane,pane_identity,token):
+                        # User closure/replacement is final for this launch.
+                        enabled=False
                         continue
-                    # A shared multi-pane window owns its native resizing policy.
-                    # Only two explicitly owned panes may be resized to fixed bounds.
-                    if set(panes)=={ctx.source,pane}:
-                        flag,desired=('-x','35') if mode=='side' else ('-y','14')
+                    panes=ctx.panes();host=panes.get(ctx.source);companion=panes.get(pane)
+                    if not host:continue
+                    width=host['width']+(companion['width']+1 if companion and mode=='side' else 0)
+                    height=host['height']+(companion['height']+1 if companion and mode=='top' else 0)
+                    if parent:
+                        # tmux clamps an existing two-pane layout to three cells.
+                        # The private client's actual size tells us when to suspend.
+                        client=ctx.call('display-message','-p','-t',ctx.source,'#{client_width}|#{client_height}')
+                        try:
+                            client_width,client_height=map(int,client.split('|'))
+                            width=min(width,client_width);height=min(height,client_height)
+                        except ValueError:pass
+                    if companion and set(panes)!={ctx.source,pane} and (
+                            host['width']<CODEX_FLOOR[0] or host['height']<CODEX_FLOOR[1]):
+                        # User layout changes can separate the panes. Yield only
+                        # our owned pane; do not resize an unrelated subtree.
+                        width=height=0
+                    desired=gate.update(mode,width,height,now)
+                    if not gate.visible and gate.available_since is not None:
+                        next_layout=min(next_layout,gate.available_since+.3)
+                    if desired==0:
+                        if pane:
+                            close_companion(ctx,pane,pane_identity,token,path.with_suffix('.ready'))
+                            pane=pane_identity=None
+                            path.with_suffix('.ready').unlink(missing_ok=True)
+                            state['tmux']['keeper']=None;attachment.atomic(path,state)
+                        continue
+                    if pane is None:
+                        if not create_companion(desired):
+                            gate.visible=False;gate.available_since=None
+                    elif set(panes)=={ctx.source,pane}:
+                        # Only our two-pane region is proportional. Additional
+                        # user panes retain the server's native resize policy.
+                        flag='-x' if mode=='side' else '-y'
                         current=companion['width'] if mode=='side' else companion['height']
-                        if current!=int(desired):ctx.call('resize-pane','-t',pane,flag,desired)
-                    elif host['width']<MIN_COLUMNS or host['height']<MIN_ROWS:
-                        close_companion(ctx,pane,pane_identity,token,path.with_suffix('.ready'))
+                        if current!=desired:ctx.call('resize-pane','-t',pane,flag,str(desired))
             if stop[0] and child.poll() is None:child.send_signal(stop[0])
             try:return child.wait(timeout=5 if stop[0] else None)
             except subprocess.TimeoutExpired:child.kill();return child.wait()
@@ -228,7 +268,7 @@ def exchange(stream,value=None):
 def private(mode,argv,real_codex,plugin):
     binary=os.environ.get('KEEPER_TMUX') or shutil.which('tmux')
     if not binary:raise ValueError('tmux is required for Keeper side/top; use --keeper for a separate window.')
-    width,height=os.get_terminal_size(0);validate_size(mode,width,height)
+    width,height=os.get_terminal_size(0)
     runtime=safe_runtime();lock=tty_lock(runtime);attrs=termios.tcgetattr(0)
     instance=Path(tempfile.mkdtemp(prefix='keeper-tmux-',dir=runtime))
     directory=os.open(instance,os.O_RDONLY|os.O_DIRECTORY)
