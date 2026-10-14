@@ -79,6 +79,8 @@ class AdaptiveLayouts(unittest.TestCase):
             launch = Launch(tmp)
             try:
                 state = launch.attached()
+                # Pane creation precedes input setup, which flushes early keys.
+                launch.wait(lambda: json.loads(launch.state_path.read_text())['tmux']['initial_ready_confirmed'])
                 launch.tmux('send-keys', '-t', state['tmux']['keeper'], 'q')
                 launch.wait(lambda: len(launch.panes()) == 1)
                 launch.resize(160, 60)
