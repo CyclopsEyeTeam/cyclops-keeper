@@ -547,6 +547,8 @@ class FaceTests(unittest.TestCase):
 
     def test_focus_calms_and_reduces_motion_from_keyboard(self):
         master,slave=pty.openpty()
+        # Python 3.10 preserves a new PTY's zero size instead of using the fallback.
+        fcntl.ioctl(slave,termios.TIOCSWINSZ,struct.pack('HHHH',24,80,0,0))
         process=subprocess.Popen([sys.executable,str(SCRIPTS/'terminal.py'),'focus','--data',str(self.data),'--no-colour'],
                                  stdin=slave,stdout=slave,stderr=slave,
                                  env={**self.env,'TERM':'xterm-256color'})
