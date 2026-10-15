@@ -36,7 +36,7 @@ class RequestedCommands(unittest.TestCase):
                     pane = panes[launch.state['tmux']['keeper']]
                     self.assertEqual(pane['height'] if mode == 'top' else pane['width'],
                                      14 if mode == 'top' else 35)
-                    self.assertEqual(json.loads(launch.receipt.read_text())['argv'], ['prompt with spaces'])
+                    self.assertEqual(json.loads(launch.receipt.read_text())['argv'], ['--no-daemon', 'prompt with spaces'])
                     self.assertTrue(all(p['cwd'] == str(launch.project) for p in panes.values()))
                 finally:
                     launch.close()
