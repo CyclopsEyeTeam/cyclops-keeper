@@ -43,7 +43,7 @@ class Clipboard(unittest.TestCase):
                               env_update={**{k:env[k] for k in ['DISPLAY','XDG_CONFIG_HOME','XDG_DATA_HOME','XDG_CACHE_HOME','GIO_USE_VFS','GTK_USE_PORTAL','NO_AT_BRIDGE']},
                                           'KEEPER_TEST_SCROLL':'1','KEEPER_TEST_INPUT_LOG':str(log)})
                 state=launch.attached();meta=state['tmux']
-                launch.wait(lambda:json.loads(launch.state_path.read_text())['tmux'].get('focus_requested'))
+                launch.wait(lambda:json.loads(launch.state_path.read_text())['tmux'].get('initial_ready_confirmed'))
                 bus=root/'dbus.conf'
                 bus.write_text('<busconfig><type>session</type><listen>unix:abstract=keeper-clipboard-'+str(os.getpid())+'-'+root.name+'</listen><policy context="default"><allow own="*"/><allow send_destination="*"/><allow receive_sender="*"/></policy></busconfig>')
                 runner=root/'terminal.sh'

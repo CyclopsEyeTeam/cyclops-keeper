@@ -2,7 +2,7 @@
 
 This shared protocol represents observed worker/session activity. Cyclops Keeper gives those observations a personal visual identity; the records carry no personality, memory or consciousness semantics. A future provider adapter may map verified native events to the same fields. No unverified provider hook names are asserted here.
 
-Codex writes one atomic UTF-8 JSON file per session, under `PLUGIN_DATA/activity-face/sessions/<session-hash>.json`. The live viewer's `GET /api/state` returns `{ "schema": "activity-face/v1", "sessions": [ ... ] }`, sorted by latest update. Private reducer keys are omitted. Public `active_tools` and `active_subagents` contain SHA-256 identifiers derived from opaque host invocation IDs, so one visible tether can be correlated with one matching return without retaining a raw ID. Tool names reduce to the finite classes `inspect`, `change`, `execute`, `service`, or `other`. Tool arguments, results, names, subagent types, transcript paths, prompt text, assistant messages, working directories, model names, and credentials are discarded. `--test-feed` serves an explicitly disposable, visibly labelled public snapshot for visual review; its base64 transport contains the same sanitized fields and never raw host IDs or payloads.
+Codex writes one atomic UTF-8 JSON file per session, under `PLUGIN_DATA/activity-face/sessions/<session-hash>.json`. The terminal's read-only snapshot adapter returns `{ "schema": "activity-face/v1", "sessions": [ ... ] }`, sorted by latest update. Private reducer keys are omitted. Public `active_tools` and `active_subagents` contain SHA-256 identifiers derived from opaque host invocation IDs, so one visible tether can be correlated with one matching return without retaining a raw ID. Tool names reduce to the finite classes `inspect`, `change`, `execute`, `service`, or `other`. Tool arguments, results, names, subagent types, transcript paths, prompt text, assistant messages, working directories, model names, and credentials are discarded.
 
 Example public session record:
 
@@ -24,7 +24,7 @@ Example public session record:
 }
 ```
 
-`session` identifies one provider-local session. Consumers should key records by `(provider, session)`. `sequence` advances for accepted events within one session; atomic replacement protects readers from partial writes. `updated_at` is receipt time in Unix seconds, not a model-provided timestamp. It orders accepted hook receipts, not an authoritative transaction ledger. `stale` is derived by the viewer after 300 seconds without a signal, and does not replace the observed state.
+`session` identifies one provider-local session. Consumers should key records by `(provider, session)`. `sequence` advances for accepted events within one session; atomic replacement protects readers from partial writes. `updated_at` is receipt time in Unix seconds, not a model-provided timestamp. It orders accepted hook receipts, not an authoritative transaction ledger. `stale` is derived by the snapshot adapter after 300 seconds without a signal, and does not replace the observed state.
 
 The documented host events are `SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PermissionRequest`, `PostToolUse`, `Stop`, `Interrupt`, `SessionEnd`, `PreCompact`, `PostCompact`, `SubagentStart`, and `SubagentStop`. `SessionStart` accepts `startup`, `resume`, `clear`, and `compact`; compaction hooks accept `manual` and `auto`. Their visual meanings describe the event only. `Stop` is not success. A `PostToolUse` or `SubagentStop` establishes only that the corresponding call/agent returned or stopped, not its success or the acceptance of its output. An observed `SessionStart: resume` reopens a previously stopped, interrupted, or ended observation to `idle`, while retaining unresolved invocation correlations until their own matching return. If the resume event has no turn id, the prior turn id remains for matching late returns.
 
@@ -36,14 +36,10 @@ Updates serialize through a short per-session file lock and atomically replace a
 
 Rendering notes for 0.3.1: stale or unavailable evidence freezes decorative movement and old transition gestures. An ended session can still show an exact subsequently observed return; this does not reopen the ended session or establish success. Colour distinguishes material and finite invocation classes, never semantic outcomes.
 
-## Cyclops Link (0.4.0, off unless turned on)
+## Terminal-only release (0.5.0)
 
-While `./keeper link on` (or `KEEPER_LINK=1`), the hook also keeps `PLUGIN_DATA/link/<session-hash>.json` (directory 0700):
-`{"v": 1, "instance", "room", "host": {"pid", "start"} | null, "state", "tools", "branches", "reaching", "reach_calls",
-"changed_at"}`. `instance` and `room` are Cyclops Link's salted 16-character ids; `state` is Keeper's state in Link's
-words (`branching` is `working`; `unknown` is never published); `reach_calls` maps the SHA-256 key of a call in flight to
-the presence class it reaches, and is filled only with `./keeper link reach on`. A detached worker
-(`keeper_link.py beat`) is the only writer of Keeper's public Link record, `$XDG_STATE_HOME/cyclops-link/keeper-<instance>.json`,
-exactly as [docs/CYCLOPS-LINK-V1.md](docs/CYCLOPS-LINK-V1.md) §4 defines it. It refreshes it every 4 seconds while the Codex
-process lives, publishes `ended` when Codex closes, the session ends or Link is switched off, and removes it a minute later.
-If it cannot tell whether Codex is alive, it never claims an end: the record simply goes stale.
+This release observes local Codex events and does not broadcast Cyclops Link
+records, start Link heartbeat workers or render peer overlays. Older consent
+and protocol artifacts remain preserved in historical source and development
+evidence. Prior consent files are not modified. Running older sessions keep
+their own loaded adapter until their normal lifecycle ends.

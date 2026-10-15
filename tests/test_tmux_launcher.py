@@ -32,31 +32,13 @@ class Contracts(unittest.TestCase):
         module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
         return module
 
-    def test_small_terminal_refuses_before_it_can_hide_codex(self):
+    def test_only_insufficient_codex_space_defers_a_companion(self):
         module=self.module()
-        for mode,w,h in [('side',95,40),('side',120,19),('top',120,34),('top',59,40)]:
-            with self.subTest(mode=mode,w=w,h=h):
-                with self.assertRaisesRegex(ValueError,'--keeper'):
-                    module.validate_size(mode,w,h)
-        module.validate_size('side',96,20)
-        module.validate_size('top',60,35)
+        self.assertEqual(module.companion_size('side',51,24),0)
+        self.assertEqual(module.companion_size('side',80,24),23)
+        self.assertEqual(module.companion_size('top',80,13),0)
+        self.assertEqual(module.companion_size('top',80,24),8)
 
-    def test_strict_reach_does_not_inspect_tool_arguments_even_when_on(self):
-        import activity,keeper_link
-        class Payload(dict):
-            def get(self,key,*args):
-                if key=='tool_input':raise AssertionError('Reach inspected tool arguments')
-                return super().get(key,*args)
-        with tempfile.TemporaryDirectory() as tmp:
-            root=Path(tmp)
-            env={**os.environ,'KEEPER_LINK':'1','KEEPER_LINK_REACH':'1','KEEPER_LINK_NO_WORKER':'1',
-                 'CYCLOPS_LINK_DIR':str(root/'link'),'XDG_CONFIG_HOME':str(root/'config')}
-            payload=Payload(session_id='session',cwd=tmp,hook_event_name='PreToolUse',
-                            tool_use_id='call',tool_name='Bash',tool_input={'command':'claude secret'})
-            activity.update(root/'data',payload)
-            keeper_link.observe(root/'data',payload,env)
-            mine=keeper_link.read_private(root/'data',hashlib.sha256(b'session').hexdigest())
-            self.assertEqual(mine['reaching'],[])
 
 class Launch:
     def __init__(self,root,mode='side',argv=(),label='session',size=(120,42),project=None,env_update=None,start=True):
@@ -93,7 +75,7 @@ finally:termios.tcsetattr(0,termios.TCSANOW,original)
                   'KEEPER_LINK':'0','KEEPER_TEST_RECEIPT':str(self.receipt),'KEEPER_TEST_SESSION':label,
                   'KEEPER_TEST_HOOK':str(SCRIPTS/'hook.py'),'TERM':'xterm-256color','NO_COLOR':'1',
                   'PYTHONDONTWRITEBYTECODE':'1'}
-        for key in ['DISPLAY','WAYLAND_DISPLAY','TMUX','TMUX_PANE','KEEPER_LAUNCH_SOCKET','KEEPER_LAUNCH_TOKEN']:
+        for key in ['DISPLAY','WAYLAND_DISPLAY','TMUX','TMUX_PANE','KEEPER_LAUNCH_SOCKET','KEEPER_LAUNCH_TOKEN','KEEPER_LAUNCHER','KEEPER_SHELL_ACTIVE']:
             self.env.pop(key,None)
         self.env.update({k:v for k,v in (env_update or {}).items() if v is not None})
         for key,value in (env_update or {}).items():
@@ -102,7 +84,7 @@ finally:termios.tcsetattr(0,termios.TCSANOW,original)
         self.resize(*size)
         def terminal_owner():
             os.setsid();fcntl.ioctl(self.slave,termios.TIOCSCTTY,0)
-        self.child=subprocess.Popen([str(ROOT/'codex-keeper'),'--keeper-'+mode,'-C',str(self.project),*argv],
+        self.child=subprocess.Popen([sys.executable,str(SCRIPTS/'launcher.py'),'--keeper',mode,'-C',str(self.project),*argv],
             stdin=self.slave,stdout=self.slave,stderr=self.slave,env=self.env,preexec_fn=terminal_owner) if start else None
         self.state_path=None;self.state=None
 
@@ -168,10 +150,10 @@ class Layouts(unittest.TestCase):
                 panes=launch.panes()
                 self.assertEqual(panes[meta['keeper']]['width'],35)
                 self.assertGreaterEqual(panes[meta['source']]['width'],60)
-                launch.wait(lambda:json.loads(launch.state_path.read_text())['tmux'].get('focus_requested') and launch.panes()[meta['keeper']]['active'])
+                launch.wait(lambda:json.loads(launch.state_path.read_text())['tmux'].get('initial_ready_confirmed') and launch.panes()[meta['source']]['active'])
                 self.assertEqual(os.readlink(f"/proc/{json.loads(launch.state_path.with_suffix('.ready').read_text())['pid']}/cwd"),str(launch.project))
                 receipt=json.loads(launch.receipt.read_text())
-                self.assertEqual(receipt['argv'],['-C',str(launch.project),'-m','model with spaces','-c','x="a b"','--','--keeper-top','literal $(touch nope)'])
+                self.assertEqual(receipt['argv'],['--no-daemon','-C',str(launch.project),'-m','model with spaces','-c','x="a b"','--','--keeper-top','literal $(touch nope)'])
                 launch.tmux('select-pane','-t',meta['source'])
                 launch.tmux('send-keys','-t',meta['source'],'a')
                 launch.wait(lambda:b'host received a' in launch.data)
@@ -207,30 +189,29 @@ class MoreLayouts(unittest.TestCase):
                 self.assertFalse(any(x.startswith(b'CODEX_HOME=') or x.startswith(b'NO_COLOR=') for x in variables))
             finally:launch.close()
 
-    def test_top_resize_keeps_banner_then_reclaims_space_when_too_small(self):
+    def test_top_resize_keeps_identity_and_allocates_proportionally(self):
         with tempfile.TemporaryDirectory() as tmp:
             launch=Launch(tmp,mode='top',label='top-resize')
             try:
                 state=launch.attached();meta=state['tmux']
                 self.assertEqual(launch.panes()[meta['keeper']]['height'],14)
                 launch.resize(140,36)
-                launch.wait(lambda:launch.panes()[meta['keeper']]['height']==14 and launch.panes()[meta['source']]['height']==21)
+                launch.wait(lambda:launch.panes()[meta['keeper']]['height']==12 and launch.panes()[meta['source']]['height']==23)
                 self.assertTrue(link.alive(state['codex']))
                 launch.resize(100,24)
-                launch.wait(lambda:len(launch.panes())==1)
-                self.assertGreaterEqual(launch.panes()[meta['source']]['height'],20)
+                launch.wait(lambda:launch.panes()[meta['keeper']]['height']==8)
+                self.assertGreaterEqual(launch.panes()[meta['source']]['height'],12)
                 self.assertTrue(link.alive(state['codex']))
             finally:launch.close()
 
-    def test_small_terminal_starts_no_host_or_server(self):
+    def test_small_terminal_starts_a_usable_host_and_companion(self):
         with tempfile.TemporaryDirectory() as tmp:
-            launch=Launch(tmp,size=(80,24))
+            launch=Launch(tmp,size=(80,19))
             try:
-                launch.child.wait(timeout=4);launch.drain()
-                self.assertEqual(launch.child.returncode,2)
-                self.assertIn(b'use --keeper',launch.data)
-                self.assertFalse(launch.receipt.exists())
-                self.assertFalse(list(launch.runtime.glob('keeper-tmux-*')))
+                state=launch.attached()
+                self.assertTrue(link.alive(state['codex']))
+                self.assertEqual(launch.panes()[state['tmux']['keeper']]['width'],23)
+                self.assertGreaterEqual(launch.panes()[state['tmux']['source']]['width'],48)
             finally:launch.close()
 
     def test_outer_kill_before_worker_bootstrap_leaves_no_owned_runtime(self):
@@ -269,7 +250,7 @@ class MoreLayouts(unittest.TestCase):
             launch=Launch(tmp,label='large-argv',argv=args)
             try:
                 launch.attached()
-                self.assertEqual(json.loads(launch.receipt.read_text())['argv'],['-C',str(launch.project),*args])
+                self.assertEqual(json.loads(launch.receipt.read_text())['argv'],['--no-daemon','-C',str(launch.project),*args])
             finally:launch.close()
 
     def test_duplicate_launch_on_one_terminal_is_refused(self):
@@ -277,7 +258,7 @@ class MoreLayouts(unittest.TestCase):
             launch=Launch(tmp,label='only-one')
             try:
                 state=launch.attached()
-                other=subprocess.Popen([str(ROOT/'codex-keeper'),'--keeper-side'],stdin=launch.slave,stdout=launch.slave,stderr=launch.slave,env=launch.env)
+                other=subprocess.Popen([sys.executable,str(SCRIPTS/'launcher.py'),'--keeper','side'],stdin=launch.slave,stdout=launch.slave,stderr=launch.slave,env=launch.env)
                 self.assertEqual(other.wait(timeout=5),2)
                 launch.drain();self.assertIn(b'already owns this terminal',launch.data)
                 self.assertTrue(link.alive(state['codex']))
@@ -377,7 +358,7 @@ class ExistingSessions(unittest.TestCase):
                     return [tmux('show-options','-g'),tmux('show-options','-s'),tmux('show-options','-t','existing'),tmux('show-options','-w','-t','existing')]
                 before=settings()
                 geometry=tmux('display-message','-p','-t',foreign,'#{pane_pid}|#{pane_width}|#{pane_height}|#{pane_left}|#{pane_top}')
-                args=[str(ROOT/'codex-keeper'),'--keeper-side','-C',str(fixture.project)]
+                args=[sys.executable,str(SCRIPTS/'launcher.py'),'--keeper','side','-C',str(fixture.project)]
                 if wrong:args=['env','TMUX_PANE='+foreign,*args]
                 tmux('send-keys','-t',source,shlex.join(args),'Enter')
                 if wrong:
@@ -385,8 +366,8 @@ class ExistingSessions(unittest.TestCase):
                     self.assertFalse(fixture.receipt.exists())
                 else:
                     state=fixture.attached();meta=state['tmux']
-                    fixture.wait(lambda:json.loads(fixture.state_path.read_text())['tmux'].get('focus_requested'))
-                    self.assertEqual(fixture.panes()[meta['keeper']]['width'],35)
+                    fixture.wait(lambda:json.loads(fixture.state_path.read_text())['tmux'].get('initial_ready_confirmed'))
+                    self.assertEqual(fixture.panes()[meta['keeper']]['width'],41)
                     self.assertEqual(settings(),before)
                     self.assertEqual(tmux('display-message','-p','-t',foreign,'#{pane_pid}|#{pane_width}|#{pane_height}|#{pane_left}|#{pane_top}'),geometry)
                     replacement=None

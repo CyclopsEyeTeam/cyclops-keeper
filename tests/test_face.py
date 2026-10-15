@@ -329,7 +329,9 @@ class FaceTests(unittest.TestCase):
         blocker = self.data / 'file-not-directory'
         blocker.write_text('keep')
         self.env['PLUGIN_DATA'] = str(blocker)
-        self.hook('Stop')
+        result=subprocess.run([sys.executable,str(SCRIPTS/'hook.py')],input=json.dumps({'hook_event_name':'Stop','session_id':'s1'}),text=True,capture_output=True,env=self.env,timeout=3)
+        self.assertEqual((result.returncode,result.stdout.strip()),(0,'{}'))
+        self.assertEqual(result.stderr,'Keeper observer: storage_error; event not acknowledged.\n')
         self.assertEqual(blocker.read_text(), 'keep')
 
     def test_concurrent_writers_keep_all_observed_tool_ids(self):
@@ -357,101 +359,9 @@ class FaceTests(unittest.TestCase):
         self.assertTrue(old['sessions'][0]['stale'])
         self.assertEqual(old['sessions'][0]['state'], 'tool')
 
-    def test_viewer_is_read_only_loopback_and_does_not_serve_arbitrary_files(self):
-        p = subprocess.Popen([sys.executable, str(SCRIPTS / 'view.py'),
-                              '--data', str(self.data), '--port', '0'],
-                             text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                             env=self.env)
-        try:
-            url = p.stdout.readline().strip()
-            self.assertRegex(url, r'^http://127\.0\.0\.1:\d+/$')
-            with urllib.request.urlopen(url, timeout=2) as r:
-                page = r.read()
-                self.assertIn(b'<canvas', page)
-                self.assertIn(b'keeper.js', page)
-                self.assertNotIn(b'<select', page)
-                self.assertNotIn(b'keeper-iris', page)
-            with urllib.request.urlopen(url + 'api/state', timeout=2) as r:
-                self.assertEqual(json.load(r)['sessions'], [])
-                self.assertEqual(r.headers['Cache-Control'], 'no-store')
-            for path, kind in [('keeper.js', 'javascript'), ('keeper.css', 'text/css'),
-                               ('keeper.svg', 'image/svg+xml'), ('presence-state.mjs', 'javascript'), ('colour-engine.js', 'javascript')]:
-                with urllib.request.urlopen(url + path, timeout=2) as r:
-                    self.assertIn(kind, r.headers['Content-Type'])
-                    self.assertGreater(len(r.read()), 100)
-            for path in ['../README.md', 'scripts/hook.py', 'keeper-art.png']:
-                with self.assertRaises(urllib.error.HTTPError) as e:
-                    urllib.request.urlopen(url + path, timeout=2)
-                self.assertEqual(e.exception.code, 404)
-            req = urllib.request.Request(url + 'api/state', headers={'Host': 'evil.example'})
-            with self.assertRaises(urllib.error.HTTPError) as e:
-                urllib.request.urlopen(req, timeout=2)
-            self.assertEqual(e.exception.code, 403)
-            req = urllib.request.Request(url + 'api/state', data=b'{}')
-            with self.assertRaises(urllib.error.HTTPError) as e:
-                urllib.request.urlopen(req, timeout=2)
-            self.assertEqual(e.exception.code, 405)
-        finally:
-            p.terminate()
-            p.communicate(timeout=3)
 
-    def test_viewer_accepts_only_explicit_calm_query_value(self):
-        p=subprocess.Popen([sys.executable,str(SCRIPTS/'view.py'),'--data',str(self.data),'--port','0'],
-                           text=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE,env=self.env)
-        try:
-            url=p.stdout.readline().strip()
-            with urllib.request.urlopen(url+'?calm=1',timeout=2) as response:
-                self.assertEqual(response.status,200)
-                self.assertIn(b'keeper.js',response.read())
-            for query in ['?calm=0','?calm=1&calm=1','?calm=1&unexpected=1']:
-                with self.assertRaises(urllib.error.HTTPError) as error:
-                    urllib.request.urlopen(url+query,timeout=2)
-                self.assertEqual(error.exception.code,404)
-        finally:
-            p.terminate();p.communicate(timeout=3)
 
-    def test_test_feed_embeds_only_the_sanitized_fixture_snapshot(self):
-        import base64
-        self.hook('UserPromptSubmit',tool_use_id='PRIVATE-FIXTURE-ID',prompt='PRIVATE-FIXTURE-PROMPT')
-        self.hook('PreToolUse',tool_use_id='PRIVATE-FIXTURE-CALL',tool_name='Read')
-        p=subprocess.Popen([sys.executable,str(SCRIPTS/'view.py'),'--data',str(self.data),
-                            '--port','0','--test-feed'],text=True,stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE,env=self.env)
-        try:
-            url=p.stdout.readline().strip()
-            with urllib.request.urlopen(url,timeout=2) as response:page=response.read().decode()
-            match=re.search(r'<meta name="keeper-fixture" content="([A-Za-z0-9+/=]*)">',page)
-            self.assertIsNotNone(match)
-            snapshot=json.loads(base64.b64decode(match.group(1)))
-            self.assertTrue(snapshot['test_feed'])
-            self.assertEqual(snapshot['sessions'][0]['active_tool_count'],1)
-            self.assertNotIn('PRIVATE-FIXTURE-',page)
-            self.assertNotIn('PRIVATE-FIXTURE-',json.dumps(snapshot))
-        finally:
-            p.terminate();p.communicate(timeout=3)
 
-    def test_browser_session_pin_never_falls_back_to_another_chat(self):
-        import hashlib
-        pinned = hashlib.sha256(b'this-chat').hexdigest()
-        self.hook('UserPromptSubmit', session='this-chat')
-        self.hook('PreToolUse', session='other-chat', tool_use_id='unrelated')
-        p = subprocess.Popen([sys.executable, str(SCRIPTS / 'view.py'),
-                              '--data', str(self.data), '--session', pinned, '--test-feed'],
-                             text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=self.env)
-        try:
-            url = p.stdout.readline().strip()
-            self.assertRegex(url, r'^http://127\.0\.0\.1:\d+/$', 'A pinned viewer must start')
-            with urllib.request.urlopen(url + 'api/state', timeout=2) as r:
-                data = json.load(r)
-            self.assertEqual([s['session'] for s in data['sessions']], [pinned])
-            self.assertTrue(data['test_feed'])
-            self.assertEqual(data['selection'], 'pinned')
-            (self.data / 'activity-face/sessions' / (pinned + '.json')).unlink()
-            with urllib.request.urlopen(url + 'api/state', timeout=2) as r:
-                self.assertEqual(json.load(r)['sessions'], [])
-        finally:
-            p.terminate()
-            p.communicate(timeout=3)
 
     def test_terminal_face_scales_and_keeps_only_one_status_line(self):
         sys.path.insert(0, str(SCRIPTS))
@@ -589,11 +499,11 @@ class FaceTests(unittest.TestCase):
                               mode='focus',unicode=False)
         self.assertTrue(frame.isascii())
         self.assertTrue(all(len(line)==16 for line in frame.splitlines()))
-        self.assertIn('KEEPER',frame.splitlines()[-1])
+        self.assertIn('O x',frame)  # micro ASCII eye and explicit interrupted state
 
     def test_focus_escape_restores_terminal_state(self):
         master,slave=pty.openpty()
-        process=subprocess.Popen([str(ROOT/'keeper'),'focus','--data',str(self.data)],
+        process=subprocess.Popen([sys.executable,str(SCRIPTS/'terminal.py'),'focus','--data',str(self.data)],
                                  stdin=slave,stdout=slave,stderr=slave,
                                  env={**self.env,'TERM':'xterm-256color'})
         os.close(slave);output=b''
@@ -615,7 +525,7 @@ class FaceTests(unittest.TestCase):
 
     def test_focus_ctrl_c_restores_terminal_state(self):
         master,slave=pty.openpty()
-        process=subprocess.Popen([str(ROOT/'keeper'),'focus','--data',str(self.data),'--no-colour'],
+        process=subprocess.Popen([sys.executable,str(SCRIPTS/'terminal.py'),'focus','--data',str(self.data),'--no-colour'],
                                  stdin=slave,stdout=slave,stderr=slave,
                                  env={**self.env,'TERM':'xterm-256color'})
         os.close(slave);output=b''
@@ -637,18 +547,23 @@ class FaceTests(unittest.TestCase):
 
     def test_focus_calms_and_reduces_motion_from_keyboard(self):
         master,slave=pty.openpty()
-        process=subprocess.Popen([str(ROOT/'keeper'),'focus','--data',str(self.data),'--no-colour'],
+        # Python 3.10 preserves a new PTY's zero size instead of using the fallback.
+        fcntl.ioctl(slave,termios.TIOCSWINSZ,struct.pack('HHHH',24,80,0,0))
+        process=subprocess.Popen([sys.executable,str(SCRIPTS/'terminal.py'),'focus','--data',str(self.data),'--no-colour'],
                                  stdin=slave,stdout=slave,stderr=slave,
                                  env={**self.env,'TERM':'xterm-256color'})
         os.close(slave);output=b''
         def collect_until(token,seconds=3):
             nonlocal output
+            from terminal_screen import Screen
             deadline=time.monotonic()+seconds
-            while time.monotonic()<deadline and token not in output:
+            while time.monotonic()<deadline:
+                screen=Screen();screen.feed(output.decode('utf-8',errors='ignore'))
+                if token in output or token.decode() in screen.text():return True
                 if select.select([master],[],[],.1)[0]:
                     try:output+=os.read(master,65536)
                     except OSError:break
-            return token in output
+            return False
         try:
             self.assertTrue(collect_until(b'\x1b[?25l'))
             os.write(master,b'c');self.assertTrue(collect_until(b'CALM'))
@@ -665,28 +580,28 @@ class FaceTests(unittest.TestCase):
         self.hook('PreToolUse',tool_use_id='resize-call',tool_name='Bash')
         master,slave=pty.openpty()
         fcntl.ioctl(slave,termios.TIOCSWINSZ,struct.pack('HHHH',24,80,0,0))
-        process=subprocess.Popen([str(ROOT/'keeper'),'focus','--data',str(self.data),'--no-colour'],
+        process=subprocess.Popen([sys.executable,str(SCRIPTS/'terminal.py'),'focus','--data',str(self.data),'--no-colour'],
                                  stdin=slave,stdout=slave,stderr=slave,
                                  env={**self.env,'TERM':'xterm-256color'})
         os.close(slave);output=b''
         try:
             deadline=time.monotonic()+3
-            while time.monotonic()<deadline and output.count(b'\x1b[H')<1:
+            while time.monotonic()<deadline and b'\x1b[24;1H' not in output:
                 if select.select([master],[],[],.1)[0]:
                     try:output+=os.read(master,65536)
                     except OSError:break
-            self.assertGreaterEqual(output.count(b'\x1b[H'),1)
-            before=output.count(b'\x1b[H')
+            self.assertIn(b'\x1b[24;1H',output)
+            output=b''
             fcntl.ioctl(master,termios.TIOCSWINSZ,struct.pack('HHHH',9,30,0,0))
             deadline=time.monotonic()+3
-            while time.monotonic()<deadline and output.count(b'\x1b[H')<=before:
+            while time.monotonic()<deadline and b'\x1b[9;1H' not in output:
                 if select.select([master],[],[],.1)[0]:
                     try:output+=os.read(master,65536)
                     except OSError:break
-            frames=output.rsplit(b'\x1b[H',1)[-1].split(b'\x1b[0m',1)[0]
-            rows=[part.strip(b'\r\n').decode('utf-8') for part in frames.split(b'\x1b[K')[:-1]]
-            self.assertEqual(len(rows),9)
-            self.assertTrue(all(len(row)==29 for row in rows),[len(row) for row in rows])
+            self.assertIn(b'\x1b[2J',output)
+            from terminal_screen import Screen
+            screen=Screen();screen.feed(output.rsplit(b'\x1b[2J',1)[-1].decode('utf-8'))
+            self.assertEqual(set(screen.cells),{(y,x) for y in range(9) for x in range(29)})
         finally:
             if process.poll() is None:
                 os.write(master,b'q');process.wait(timeout=3)

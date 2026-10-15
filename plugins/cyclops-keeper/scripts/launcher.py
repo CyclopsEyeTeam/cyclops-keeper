@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the installed Codex and one independent Keeper window. Linux/GNOME candidate."""
+"""Internal Codex integration: three terminal views around the installed Codex."""
 import fcntl
 import json
 import os
@@ -17,29 +17,17 @@ import time
 sys.dont_write_bytecode = True
 import launcher_link as attachment
 
-FLAGS = {'--keeper': 'focus', '--keeper-side': 'side', '--keeper-top': 'top'}
-VALUE_OPTIONS = {'-c', '--config', '-C', '--cd', '-m', '--model', '-p', '--profile',
-                 '-s', '--sandbox', '-a', '--ask-for-approval', '-i', '--image',
-                 '--enable', '--disable', '--remote', '--remote-auth-token-env',
-                 '--local-provider', '--add-dir', '--output-last-message', '-o'}
-
-
 def split_flags(argv):
-    mode, forwarded, value, literal = None, [], False, False
-    for arg in argv:
-        if value or literal:
-            forwarded.append(arg)
-            value = False
-        elif arg == '--':
-            literal = True
-            forwarded.append(arg)
-        elif arg in FLAGS:
-            if mode and mode != FLAGS[arg]:
-                raise ValueError('Choose one Keeper view per launch.')
-            mode = FLAGS[arg]
-        else:
-            forwarded.append(arg)
-            value = arg in VALUE_OPTIONS
+    # Only the leading Keeper prefix is ours. Everything else belongs to
+    # Codex, including new upstream options, their values and literal "--".
+    if argv[:1] in (['--keeper-side'], ['--keeper-top']):
+        raise ValueError('Use codex --keeper side, codex --keeper top, or codex --keeper.')
+    if argv[:1] != ['--keeper']:
+        return None, list(argv)
+    forwarded = list(argv[1:])
+    mode = forwarded.pop(0) if forwarded[:1] in (['side'], ['top']) else 'focus'
+    if forwarded[:1] == ['--keeper']:
+        raise ValueError('Choose one Keeper view per launch.')
     return mode, forwarded
 
 
@@ -70,7 +58,7 @@ def installed_plugin():
         except (OSError,ValueError,KeyError):
             pass
     if not available:
-        raise ValueError('Installed Keeper has no launch attachment adapter. Install the reviewed Keeper candidate first.')
+        raise ValueError('Keeper is not installed. Run ./install.sh from its checkout.')
     return max(available)[1]
 
 
@@ -101,11 +89,17 @@ def child_guard(parent_pid):
     if os.getppid()!=parent_pid: os._exit(125)
 
 
+def window_options(mode):
+    if mode == 'focus':
+        return ['--full-screen']
+    return ['--geometry=' + {'side': '54x36', 'top': '120x14'}[mode]]
+
+
 def run(mode, argv, real_codex, plugin):
     if not shutil.which('gnome-terminal'):
-        raise ValueError('This candidate needs GNOME Terminal.')
+        raise ValueError('The separate Keeper view needs GNOME Terminal.')
     if not os.environ.get('DISPLAY') or os.environ.get('XDG_SESSION_TYPE') == 'wayland':
-        raise ValueError('This candidate needs an X11 desktop for verified window focus and placement.')
+        raise ValueError('The separate Keeper view needs an X11 desktop; use codex --keeper side or top here.')
     runtime = safe_runtime()
     # Duplicate flag requests and concurrent wrappers on the same launching tty
     # cannot create extra companion windows. Other Codex sessions get their own.
@@ -151,7 +145,7 @@ def run(mode, argv, real_codex, plugin):
             command=['gnome-terminal','--window','--wait','--hide-menubar',
                      '--role='+role,'--title=Cyclops Keeper — '+mode,
                      '--working-directory='+str(project_directory(argv)),
-                     '--geometry='+({'focus':'100x36','side':'54x36','top':'120x14'}[mode]),
+                     *window_options(mode),
                      '--',sys.executable,str(plugin/'scripts/terminal.py')]
             if mode == 'focus': command.append('focus')
             command += ['--attachment',str(state_path)]
@@ -176,7 +170,7 @@ def run(mode, argv, real_codex, plugin):
                     handle=placement.find_role(role)
                     if handle and state_path.with_suffix('.ready').exists():
                         if placed is None:
-                            placement.place(handle,mode)
+                            if mode != 'focus': placement.place(handle,mode)
                             placed=handle
                             focus_at=time.monotonic()+.35
                         elif time.monotonic()>=focus_at:
@@ -228,6 +222,9 @@ def main():
             os.execvpe(real,[real,*argv],os.environ)
         if os.environ.get('KEEPER_LAUNCH_SOCKET'):
             raise ValueError('Nested Keeper launches are refused; use ordinary Codex for the nested command.')
+        # Hooks must inherit this launch's private attachment socket and token.
+        # A shared Codex server can retain another launch's environment.
+        argv = ['--no-daemon', *argv]
         if mode in {'side','top'}:
             from launcher_tmux import run as tmux_run
             status=tmux_run(mode,argv,real,installed_plugin())
