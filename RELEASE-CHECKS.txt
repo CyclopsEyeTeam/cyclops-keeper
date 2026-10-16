@@ -6,7 +6,7 @@ Current source: main branch. These checks describe repository source, not a
 tagged archive or installed copy.
 
 Local verification:
-- 67 focused expression, identity, caption, layout and pacing tests passed.
+- 68 focused expression, identity, caption, layout and pacing tests passed.
 - 4 raster conformance tests passed, including the preserved original frames.
 - Three 20-second dense 100×32 PTY comparisons per version measured median
   renderer CPU falling from 35.75% to 23.94% of one core and p95 composition
