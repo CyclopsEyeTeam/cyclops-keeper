@@ -1,7 +1,26 @@
-Cyclops Keeper 0.5.0 release checks
+Cyclops Keeper 0.5.0 source checks — 17 October 2026
 
-Public commands: install.sh; codex --keeper side; codex --keeper top; codex --keeper.
+Public commands: codex --keeper side; codex --keeper top; codex --keeper.
 Platform: Linux/Bash; tmux panes; GNOME/X11 separate fullscreen terminal.
-Current verification and measurement results: docs/VALIDATION.md.
-138 functional tests passed; resource acceptance remains HOLD. Unpublished candidate.
-Historical experimental evidence is preserved separately and is not a current pass.
+Current source: main branch. These checks describe repository source, not a
+tagged archive or installed copy.
+
+Local verification:
+- 67 focused expression, identity, caption, layout and pacing tests passed.
+- 4 raster conformance tests passed, including the preserved original frames.
+- Three 20-second dense 100×32 PTY comparisons per version measured median
+  renderer CPU falling from 35.75% to 23.94% of one core and p95 composition
+  falling from 40.85 ms to 27.05 ms. Sampled RSS increased by 0.69 MiB.
+- The before/after comparison exercises stable tool and branch tethers only;
+  it is not the complete 90-case resource matrix.
+
+The full 90-case matrix predates the tether-layer cache. Its measured source
+had failing CPU and repeatability cells, and endpoint CPU frequency ranged from
+about 0.8 to 4.4 GHz. Those records remain in docs/VALIDATION.md and the
+HDD-backed run folder. A full matrix against the current source has not run.
+
+GitHub Actions on the current source commit is the whole-suite check. Update
+this file with the run link and final Python-version results after it completes.
+
+The public release archive is a frozen snapshot from an earlier source commit.
+It does not contain the current main-branch changes.

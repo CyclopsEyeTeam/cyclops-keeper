@@ -5,6 +5,7 @@ Every invocation owns a stationary route derived from its complete opaque key.
 """
 import hashlib
 import math
+from collections import OrderedDict
 from functools import lru_cache
 from responsive import detail
 from responsive_expression import micro, miniature
@@ -162,7 +163,8 @@ class Surface:
                 last_x,last_y=x,y
             prior=point
 
-    def frame(self, status, *, colour=False, truecolour=False, dim=False, calm=False, unicode=True):
+    def frame(self, status, *, caption=None, colour=False, truecolour=False,
+              dim=False, calm=False, unicode=True):
         codes=colour_codes(truecolour,dim,calm) if colour else ()
         glyphs=GLYPHS if unicode else ASCII_GLYPHS
         output=[]
@@ -176,8 +178,49 @@ class Surface:
                 row.append(glyph)
             if colour:row.append("\x1b[0m")
             output.append(''.join(row))
+        if caption is not None:
+            output.append((codes[10] if colour else '')+caption+("\x1b[0m" if colour else ''))
         output.append((codes[10] if colour else '')+status+("\x1b[0m" if colour else ''))
         return "\n".join(output)
+
+    def overlay(self, layer, occupied):
+        """Composite a sealed, sparse surface with the original priority rule."""
+        if (self.columns,self.rows)!=(layer.columns,layer.rows):
+            raise ValueError('surface layer geometry mismatch')
+        for row,col in occupied:
+            self.masks[row][col] |= layer.masks[row][col]
+            if layer.priorities[row][col] >= self.priorities[row][col]:
+                self.roles[row][col]=layer.roles[row][col]
+                self.priorities[row][col]=layer.priorities[row][col]
+
+
+class RelationLayerCache:
+    """A tiny LRU for settled tool/branch routes; event gestures bypass it."""
+    def __init__(self,maxsize=4):
+        self.maxsize=max(1,int(maxsize));self.layers=OrderedDict()
+        self.builds=0;self.hits=0
+
+    def clear(self):
+        self.layers.clear();self.builds=0;self.hits=0
+
+    @property
+    def size(self):return len(self.layers)
+
+    def get_or_create(self,key,builder):
+        cached=self.layers.get(key)
+        if cached is not None:
+            self.layers.move_to_end(key);self.hits+=1
+            return cached
+        layer=builder()
+        occupied=tuple((row,col) for row,masks in enumerate(layer.masks)
+                       for col,mask in enumerate(masks) if mask)
+        value=(layer,occupied)
+        self.layers[key]=value;self.layers.move_to_end(key);self.builds+=1
+        while len(self.layers)>self.maxsize:self.layers.popitem(last=False)
+        return value
+
+
+ACTIVE_RELATION_LAYER_CACHE=RelationLayerCache()
 
 
 def life_amount(record, lively, calm, reduced_motion):
@@ -187,19 +230,146 @@ def life_amount(record, lively, calm, reduced_motion):
     return {'waiting':.25,'stopped':.35,'interrupted':.35,'idle':.65}.get(record['state'],1)
 
 
+def _witness_canvas(surface, record, *, body_rows, cx, cy, sx, sy, now, calm,
+                    reduced_motion, frozen, lively):
+    """Paint the latest observed event in a canvas below Keeper when it fits."""
+    if surface.columns < 32 or body_rows < 8:
+        return
+
+    sequence=record.get('sequence')
+    event=next((item for item in reversed(record.get('transitions',[]))
+                if item['sequence']==sequence),None)
+    if not record.get('event_observed') or event is None:
+        return
+
+    # Reserve a row after Keeper's longest filament. The larger canvas uses
+    # the open space below the body, and naturally contracts with short panes.
+    tail_bottom=cy+216*sy
+    below_row=math.ceil(tail_bottom/4)+1
+    below_rows=body_rows-below_row
+    if below_rows>=5:
+        tile_columns=min(48,surface.columns-4,max(16,round(surface.columns*.72)))
+        tile_rows=min(12,below_rows)
+        left=max(2,math.ceil(cx/2-tile_columns/2))
+        left=min(left,surface.columns-tile_columns-2)
+        x0,y0=left*2,below_row*4
+        x1=x0+tile_columns*2-1;y1=y0+tile_rows*4-1
+        edge=min(5,max(2,tile_rows//2))
+    else:
+        # Keep the existing compact mark for ordinary short terminal heights.
+        left_cells=(cx-147*sx)/2
+        tile_columns=min(9,int(left_cells)-2)
+        if tile_columns < 4:
+            return
+        x0,y0=2,max(4,min((body_rows-4)*4,round(body_rows*.16)*4))
+        x1=x0+tile_columns*2-1;y1=y0+11
+        edge=2
+    for a,b in (((x0,y0),(x0+edge,y0)),((x0,y0),(x0,y0+edge)),
+                ((x1-edge,y0),(x1,y0)),((x1,y0),(x1,y0+edge)),
+                ((x0,y1-edge),(x0,y1)),((x0,y1),(x0+edge,y1)),
+                ((x1-edge,y1),(x1,y1)),((x1,y1-edge),(x1,y1))):
+        surface.line(a,b,0,0)
+
+    age=now-event['at']
+    animate=(not calm and not reduced_motion and not frozen and lively and 0<=age<.72)
+    reveal=max(.05,min(1,age/.72)) if animate else 1
+    ix0,ix1=x0+2,x1-2;iy0,iy1=y0+2,y1-2
+
+    def p(u,v):
+        return (ix0+u*(ix1-ix0),iy0+v*(iy1-iy0))
+
+    def curve(points,role):
+        surface.curve([p(*point) for point in points],role,0,until=reveal)
+
+    def line(a,b,role):
+        start,end=p(*a),p(*b)
+        end=(start[0]+(end[0]-start[0])*reveal,
+             start[1]+(end[1]-start[1])*reveal)
+        surface.line(start,end,role,0)
+
+    def bead(at,role=5):
+        surface.point(*p(*at),role,0)
+
+    kind=event.get('kind') or 'other'
+    role={'inspect':6,'change':7,'execute':4,'service':8,'other':1}.get(kind,1)
+    eye=(.30,.58);crown=(.72,.12)
+    # Keeper's crown, off-centre aperture and trailing line anchor each mark.
+    curve(((.08,.76),(.02,.34),(.39,.27),crown),1)
+    curve((crown,(.95,.20),(.91,.48),(.83,.59)),2)
+    bead(eye);bead((eye[0]+.08,eye[1]),4)
+
+    name=event['event']
+    if name=='UserPromptSubmit':
+        curve(((.02,.90),(.22,.82),(.58,.47),(.94,.25)),6);bead((.94,.25))
+    elif name=='PreToolUse':
+        if kind=='inspect':
+            curve((eye,(.46,.34),(.71,.42),(.96,.24)),6);bead((.96,.24))
+        elif kind=='change':
+            curve(((.25,.22),(.49,.34),(.62,.66),(.91,.78)),7)
+            curve(((.24,.77),(.48,.62),(.62,.35),(.92,.24)),6)
+        elif kind=='execute':
+            line((.36,.61),(.36,.91),4);line((.14,.91),(.92,.91),4)
+        elif kind=='service':
+            curve(((.56,.42),(.68,.12),(.97,.25),(.81,.49)),8)
+            curve(((.81,.49),(.64,.69),(.47,.52),(.56,.42)),8);bead((.82,.29))
+        else:
+            curve((eye,(.49,.42),(.72,.71),(.96,.45)),1)
+    elif name=='PostToolUse':
+        curve(((.98,.24),(.78,.38),(.52,.54),eye),role);bead(eye)
+    elif name=='PermissionRequest':
+        for x in (.16,.84):line((x,.22),(x,.82),3)
+        for y in (.22,.82):
+            line((.16,y),(.30,y),3);line((.70,y),(.84,y),3)
+        bead((.50,.52))
+    elif name=='SubagentStart':
+        curve((eye,(.48,.51),(.65,.50),(.94,.18)),8)
+        curve(((.48,.51),(.64,.52),(.69,.72),(.94,.86)),2)
+        bead((.94,.18));bead((.94,.86))
+    elif name=='SubagentStop':
+        curve(((.06,.18),(.30,.30),(.43,.48),(.60,.53)),8)
+        curve(((.06,.86),(.30,.72),(.43,.57),(.60,.53)),2)
+        curve(((.60,.53),(.76,.53),(.82,.46),(.96,.42)),5)
+    elif name=='Interrupt':
+        line((.12,.78),(.40,.50),9);line((.59,.34),(.88,.08),9);bead((.50,.51),9)
+    elif name=='PreCompact':
+        curve(((.06,.14),(.28,.24),(.38,.42),(.50,.53)),3)
+        curve(((.96,.15),(.78,.29),(.65,.43),(.50,.53)),2);bead((.50,.53))
+    elif name=='PostCompact':
+        curve(((.50,.53),(.35,.31),(.22,.19),(.04,.14)),3)
+        curve(((.50,.53),(.70,.31),(.82,.20),(.97,.13)),2);bead((.50,.53))
+    elif name=='Stop':
+        line((.12,.82),(.91,.82),4);bead((.70,.77))
+    elif name=='SessionStart':
+        curve(((.12,.83),(.12,.42),(.36,.19),crown),1);bead((.87,.29))
+    elif name=='SessionEnd':
+        curve(((.10,.35),(.24,.84),(.76,.84),(.91,.35)),2)
+        line((.22,.86),(.80,.86),0)
+    else:
+        curve((eye,(.44,.30),(.71,.68),(.95,.42)),role)
+
+
+def _relation_surface(columns,rows,draw):
+    layer=Surface(columns,rows)
+    draw(layer)
+    return layer
+
+
 def draw_keeper(record, columns, rows, status, *, mode='balanced', now=0,
                 calm=False, reduced_motion=False, blink=False, colour=False,
-                truecolour=False, lively=True):
+                truecolour=False, lively=True, caption=None, relation_cache=True):
     level=detail(columns,rows)
     if level in {'micro','insufficient'}:
         return micro(record,columns,rows,now,unicode=True,reduced_motion=reduced_motion,calm=calm,colour=colour)
     if level=='small':
         return miniature(record,columns,rows,status,now,colour=colour,truecolour=truecolour,
-                         calm=calm,reduced_motion=reduced_motion,mode=mode,lively=lively)
-    surface=Surface(columns,max(0,rows-1))
+                         calm=calm,reduced_motion=reduced_motion,mode=mode,lively=lively,
+                         caption=caption)
+    caption_rows=len(caption.splitlines()) if caption is not None else 0
+    body_rows=max(0,rows-1-caption_rows)
+    surface=Surface(columns,body_rows)
     if columns < 3 or rows < 3:
-        return surface.frame(status,colour=colour,truecolour=truecolour)
-    w,h=columns*2,(rows-1)*4
+        return surface.frame(status,caption=caption,colour=colour,truecolour=truecolour)
+    w,h=columns*2,body_rows*4
     frozen=record['stale'] or record['state']=='unknown'
     state='unknown' if frozen else record['state']
     gestures=not reduced_motion and not frozen
@@ -221,6 +391,10 @@ def draw_keeper(record, columns, rows, status, *, mode='balanced', now=0,
         surface.line(p(*a),p(*b),role,priority,dash)
     def ring(x,y,r,role=1,priority=1,aspect=1,start=0,end=math.tau):
         surface.ellipse(p(x,y),max(.6,r*sx),max(.6,r*sy*aspect),role,priority,start,end)
+
+    _witness_canvas(surface,record,body_rows=body_rows,cx=cx,cy=cy,sx=sx,sy=sy,now=now,
+                    calm=calm,reduced_motion=reduced_motion,frozen=frozen,
+                    lively=lively)
 
     # The asymmetry is the signature: a high open crown on the right, a
     # membrane gathered around one aperture, then loose downward filaments.
@@ -280,30 +454,68 @@ def draw_keeper(record, columns, rows, status, *, mode='balanced', now=0,
     ribbons=record['transitions']
     gesture_time=1.2 if lively and not calm else .8
     arrival_time=.75 if lively and not calm else .55
-    for agent,items in ((False,record['active_tools']),(True,record['active_subagents'])):
-        for item in items:
-            points=route(item['key'],agent);role=8 if agent else kind_roles[item['kind']]
-            extension=1
-            if gestures:
-                start_event=next((e for e in reversed(ribbons) if e['key']==item['key'] and
-                                 e['event']==('SubagentStart' if agent else 'PreToolUse')),None)
-                if start_event and 0 <= now-start_event['at'] < arrival_time:
+    latest_start_tool={};latest_start_agent={}
+    for event in ribbons:
+        if not event['key']:continue
+        if event['event']=='PreToolUse':latest_start_tool[event['key']]=event
+        elif event['event']=='SubagentStart':latest_start_agent[event['key']]=event
+
+    # The membrane breathes independently from its observed work tethers. Use
+    # the stable body envelope for these routes so a settled route can be
+    # rasterized once and reused without flattening Keeper's body motion.
+    relation_sx=scale*(1-fold) if lively else sx
+    relation_sy=scale*(1-fold*.6) if lively else sy
+    def paint_relations(target):
+        def rp(x,y):return (cx+x*relation_sx,cy+y*relation_sy)
+        def relation_curve(points,role=1,priority=1,dash=0,until=1):
+            return target.curve([rp(*q) for q in points],role,priority,dash,until)
+        def relation_line(a,b,role=1,priority=1,dash=0):
+            target.line(rp(*a),rp(*b),role,priority,dash)
+        def relation_ring(x,y,r,role=1,priority=1,aspect=1,start=0,end=math.tau):
+            target.ellipse(rp(x,y),max(.6,r*relation_sx),
+                           max(.6,r*relation_sy*aspect),role,priority,start,end)
+        for agent,items in ((False,record['active_tools']),(True,record['active_subagents'])):
+            starts=latest_start_agent if agent else latest_start_tool
+            for item in items:
+                points=route(item['key'],agent);role=8 if agent else kind_roles[item['kind']]
+                extension=1
+                start_event=starts.get(item['key'])
+                if gestures and start_event and 0<=now-start_event['at']<arrival_time:
                     extension=max(.08,(now-start_event['at'])/arrival_time)
-            held=frozen or state in {'waiting','stopped','interrupted','ended'}
-            dash=3 if held else 2 if agent or item.get('kind') in {'execute','other'} else 0
-            until=.72 if state=='ended' else extension
-            curve(points,role,1,dash,until)
-            x,y=points[-1]
-            if agent:
-                ring(x,y,7,role,2);ring(x,y,2.5,role,2)
-            elif held or item['kind']=='service':
-                ring(x,y,4.5,role,2)
-                if state=='waiting':line((x-2,y),(x+2,y),role,2)
-            else:
-                ring(x,y,2,role,2)
-                surface.point(*p(x,y),role,2)
-            if not agent and item['kind']=='change' and not held:
-                curve([(x,y+4) for x,y in points],role,1,0,extension)
+                held=frozen or state in {'waiting','stopped','interrupted','ended'}
+                dash=3 if held else 2 if agent or item.get('kind') in {'execute','other'} else 0
+                until=.72 if state=='ended' else extension
+                relation_curve(points,role,1,dash,until)
+                x,y=points[-1]
+                if agent:
+                    relation_ring(x,y,7,role,2);relation_ring(x,y,2.5,role,2)
+                elif held or item['kind']=='service':
+                    relation_ring(x,y,4.5,role,2)
+                    if state=='waiting':relation_line((x-2,y),(x+2,y),role,2)
+                else:
+                    relation_ring(x,y,2,role,2)
+                    target.point(*rp(x,y),role,2)
+                if not agent and item['kind']=='change' and not held:
+                    relation_curve([(x,y+4) for x,y in points],role,1,0,extension)
+
+    relation_gesture_live=False
+    if gestures:
+        for agent,items in ((False,record['active_tools']),(True,record['active_subagents'])):
+            starts=latest_start_agent if agent else latest_start_tool
+            for item in items:
+                start_event=starts.get(item['key'])
+                if start_event and 0<=now-start_event['at']<arrival_time:
+                    relation_gesture_live=True;break
+            if relation_gesture_live:break
+    relation_key=(columns,body_rows,state,frozen,mode,relation_sx,relation_sy,
+                  tuple((item['key'],item['kind']) for item in record['active_tools']),
+                  tuple(item['key'] for item in record['active_subagents']))
+    if relation_cache and lively and not relation_gesture_live:
+        relation_layer,occupied=ACTIVE_RELATION_LAYER_CACHE.get_or_create(
+            relation_key,lambda: _relation_surface(columns,body_rows,paint_relations))
+        surface.overlay(relation_layer,occupied)
+    else:
+        paint_relations(surface)
     if gestures:
         active_tools={item['key'] for item in record['active_tools']}
         active_agents={item['key'] for item in record['active_subagents']}
@@ -339,5 +551,5 @@ def draw_keeper(record, columns, rows, status, *, mode='balanced', now=0,
         if state=='waiting':
             line((-11,-10),(-11,10),3,4)
             line((11,-10),(11,10),3,4)
-    return surface.frame(status,colour=colour,truecolour=truecolour,
+    return surface.frame(status,caption=caption,colour=colour,truecolour=truecolour,
                          dim=frozen or state=='ended',calm=calm)

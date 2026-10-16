@@ -29,6 +29,39 @@ class FrameWork(unittest.TestCase):
    def get(self,*args):raise AssertionError('empty glyph map probed')
   surface=terminal_art.Surface(100,31);surface.glyphs=Empty();surface.point(20,20)
   self.assertIn(chr(0x2800+1),surface.frame('status'))
+ def test_dense_stable_relation_layer_is_reused_without_changing_frames(self):
+  self.assertTrue(hasattr(terminal_art,'ACTIVE_RELATION_LAYER_CACHE'),
+                  'stable tool and branch geometry is still rasterized on every frame')
+  cache=terminal_art.ACTIVE_RELATION_LAYER_CACHE
+  cache.clear()
+  record={'state':'branching','sequence':64,'event_observed':False,'stale':False,
+          'active_tools':[{'key':format(i,'064x'),'kind':'execute','sequence':i} for i in range(32)],
+          'active_subagents':[{'key':format(i+100,'064x'),'sequence':i} for i in range(32)],
+          'transitions':[]}
+  first=terminal_art.draw_keeper(record,48,20,'status',now=100.0)
+  self.assertEqual(cache.builds,1)
+  second=terminal_art.draw_keeper(record,48,20,'status',now=100.3)
+  self.assertEqual(cache.builds,1)
+  self.assertEqual(cache.hits,1)
+  self.assertEqual(second,terminal_art.draw_keeper(record,48,20,'status',now=100.3,relation_cache=False))
+  self.assertNotEqual(first,second,'Keeper body motion should continue while the tether layer is reused')
+  self.assertLessEqual(cache.size,cache.maxsize)
+ def test_fresh_relation_arrivals_bypass_the_cache_until_their_gesture_settles(self):
+  cache=terminal_art.ACTIVE_RELATION_LAYER_CACHE;cache.clear()
+  tools=[{'key':format(i,'064x'),'kind':'execute','sequence':i} for i in range(4)]
+  agents=[{'key':format(i+100,'064x'),'sequence':i} for i in range(3)]
+  transitions=[{'sequence':i+1,'event':'PreToolUse','at':100.0,'key':item['key'],'kind':'execute'}
+               for i,item in enumerate(tools)]
+  transitions.extend({'sequence':len(transitions)+i+1,'event':'SubagentStart','at':100.0,
+                      'key':item['key'],'kind':None} for i,item in enumerate(agents))
+  record={'state':'branching','sequence':len(transitions),'stale':False,'event_observed':True,
+          'active_tools':tools,'active_subagents':agents,'transitions':transitions}
+  moving=terminal_art.draw_keeper(record,48,20,'status',now=100.2)
+  self.assertEqual(cache.builds,0)
+  self.assertEqual(moving,terminal_art.draw_keeper(record,48,20,'status',now=100.2,relation_cache=False))
+  settled=terminal_art.draw_keeper(record,48,20,'status',now=100.9)
+  self.assertEqual(cache.builds,1)
+  self.assertEqual(settled,terminal_art.draw_keeper(record,48,20,'status',now=100.9,relation_cache=False))
  def test_static_body_is_reused_and_real_changes_invalidate_it(self):
   from unittest.mock import patch
   self.assertTrue(hasattr(terminal,'RenderCache'),'bounded static body cache missing')

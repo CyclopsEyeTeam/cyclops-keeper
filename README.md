@@ -3,8 +3,11 @@
 A small, single-eyed presence for the Codex terminal. Keeper’s woven membrane,
 crown and trailing filaments respond to observed session activity.
 
-0.5.0 is an unpublished release candidate. Functional checks pass; resource
-acceptance remains **HOLD**. See the [validation results](docs/VALIDATION.md).
+The current `main` branch adds an event canvas and Keeper-voiced captions that
+translate observed Codex events. Install instructions below use the current
+`main` source; tagged archives are separate snapshots. The
+[validation results](docs/VALIDATION.md) describe the checks and measured
+limits for the current source.
 
 ![Keeper’s terminal expression](media/keeper-terminal.png)
 
@@ -67,17 +70,23 @@ private tmux session, `Ctrl+B`, then `o`, switches focus between panes.
 
 ## What the expression means
 
-Keeper observes activity: a turn started, tools or branches are active,
-permission is waiting, compaction happened, a turn stopped, or the session
-ended. A stopped turn is not a claim of success. Missing or old evidence is
+Keeper translates observed events into short captions: a new turn turns the
+aperture toward its line, a tool sends a thread outward and its matching return
+brings that thread home, a branch opens at the side, and compaction gathers or
+reopens the weave. Permission waits at a gate; interruption leaves a severed
+filament. A stopped turn is not a claim of success. Missing or old evidence is
 shown as unavailable.
 
-The current checkout brings more motion to Keeper’s original woven silhouette:
-the membrane breathes and flexes, trailing filaments sway independently, and
-the crown and nearby satellite move subtly. Waiting has quieter decoration.
-Arrival and return gestures follow observed events and last long enough to read.
-Calm and reduced-motion controls retain the restrained presentation; stale and
-unknown signals do not gain decorative life.
+Wide, tall views give the latest observed event its own canvas below Keeper,
+with a two-row caption for the event and any still-open tool or branch threads.
+Shorter views keep a compact mark or one caption line. The canvas appears only
+when the matching host event is present in the current bounded event record.
+Calm and reduced motion keep that event meaning while stopping decorative
+movement; stale and unknown signals do not gain motion or guessed activity.
+
+Keeper’s membrane breathes and flexes, trailing filaments sway independently,
+and the crown and nearby satellite move subtly. Waiting is quieter. Arrival and
+return gestures follow observed events and last long enough to read.
 
 Active decoration targets at most 15 new bodies per second; slower idle and
 calm rhythms keep their existing pace. Only changed terminal cells are written,
@@ -85,6 +94,14 @@ with a complete repaint on resize. Observed state, session identity,
 attachment generation, resize, blink and motion changes invalidate the held
 body immediately when observed. Drawing deadlines do not delay input or feed
 polling. These are scheduling targets, not measured physical display FPS.
+
+Once a tool or branch arrival gesture settles, its tether layer is rasterized
+once and reused while Keeper’s membrane and aperture continue moving. A new
+observed arrival bypasses the cache until its gesture settles. In a focused
+100×32 dense PTY comparison, the layer cache reduced median renderer CPU from
+35.75% to 23.94% of one core; sampled memory rose by 0.69 MiB. This is a
+three-pair synthetic comparison, not a full resource acceptance result. See
+[validation](docs/VALIDATION.md) for the full scope and retained earlier matrix.
 
 Keeper does not store prompts, replies, reasoning, tool arguments, results,
 transcripts, raw session IDs or project paths in its public presence feed.
@@ -106,9 +123,8 @@ this checkout and recorded activity.
 ## Development and release
 
 Run `./tools/check.sh` to check shell syntax and run the terminal test suite.
-[Validation](docs/VALIDATION.md) records the checks and measured limits for this
-candidate. Historical failures remain in the development evidence; they are not
-turned into passing release results.
+[Validation](docs/VALIDATION.md) records current test results, measurements,
+platform limits and retained historical evidence.
 
 MIT licensed. [Provenance](PROVENANCE.md). Independent project from the Cyclops
 Eye Team; not made, endorsed or supported by OpenAI.

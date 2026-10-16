@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Add an event-gated illustration canvas below Keeper, with room for the latest observed event in tall terminal views and a compact mark in shorter views.
+- Add Keeper-voiced captions for observed turn, tool, branch, permission, interruption, session and compaction events; the second row reports only bounded live relations and a short event trail.
+- Keep captions whole in narrow views and keep quiet, stale and unknown observations free of invented activity.
+- Preserve the original terminal body fixture, update the captioned render baseline, and add explicit coverage for missing event evidence and resize-safe caption layouts.
+- Reuse a bounded raster layer for settled tool and branch tethers while Keeper’s body keeps moving; fresh observed arrival gestures bypass the cache.
+- Keep the main README and validation notes aligned with the current source and scoped performance evidence.
+
 ## 0.5.0 — Simple terminal presence
 
 - One installation command: `./install.sh` installs both the plugin and terminal commands.
@@ -13,7 +22,7 @@
 - Complete 200 ms decorative deadline scheduling with immediate public-state and ownership invalidation.
 - Avoid continuous metrics collection during ordinary use; CPU metrics use the process CPU clock.
 - Preserve the woven artwork, exact argument forwarding, launch attachment, terminal restoration and scoped pane ownership.
-- Prepared as an unpublished release candidate; resource acceptance remains HOLD. See `docs/VALIDATION.md` for current evidence and platform limits.
+- The tagged archive is a frozen snapshot. This branch’s later expression changes are listed above; see `docs/VALIDATION.md` for source and release-snapshot evidence.
 
 ## Historical development
 

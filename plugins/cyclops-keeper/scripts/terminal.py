@@ -25,8 +25,6 @@ import presentation_state
 from terminal_output import DirtyFrame
 
 KEY_PATTERN = set('0123456789abcdef')
-
-
 def _key(value):
     return isinstance(value, str) and len(value) == 64 and set(value) <= KEY_PATTERN
 
@@ -39,11 +37,13 @@ def _record(value, stale=False):
                  'ended':'SessionEnd'}.get(value, 'SessionStart')
         return {'schema':'activity-face/v1','state':value if value in LABELS else 'unknown',
                 'event':event,'updated_at':0,'sequence':0,'stale':stale,
+                'event_observed':False,
                 'active_tools':[],'active_subagents':[],'transitions':[]}
     if not isinstance(value, dict):
         return _record('unknown')
     state=value.get('state') if value.get('state') in LABELS else 'unknown'
-    event=value.get('event') if value.get('event') in EVENTS else 'SessionStart'
+    event_observed=value.get('event') in EVENTS
+    event=value.get('event') if event_observed else 'SessionStart'
     tools=[]
     for item in value.get('active_tools',[]) if isinstance(value.get('active_tools'),list) else []:
         if isinstance(item,dict) and _key(item.get('key')):
@@ -63,11 +63,140 @@ def _record(value, stale=False):
                                 'at':item['at'],'key':item.get('key') if _key(item.get('key')) else None,
                                 'kind':item.get('kind') if item.get('kind') in TOOL_KINDS else None})
     return {'schema':'activity-face/v1','state':state,'event':event,
+            'event_observed':event_observed,
             'relations_incomplete':bool(value.get('relations_incomplete')),
             'updated_at':value.get('updated_at',0),'sequence':value.get('sequence',0),
             'stale':bool(stale or value.get('stale')),'active_tools':sorted(tools,key=lambda x:(x['sequence'],x['key'])),
             'active_subagents':sorted(agents,key=lambda x:(x['sequence'],x['key'])),
             'transitions':sorted(transitions[-32:],key=lambda x:x['sequence'])}
+
+
+def _current_transition(record):
+    """Find the newest transition, including a late event that leaves state intact."""
+    sequence=record.get('sequence')
+    return next((item for item in reversed(record['transitions'])
+                 if item['sequence']==sequence),None)
+
+
+def _trail_label(transition):
+    event=transition['event']
+    if event=='PreToolUse':
+        return {'inspect':'look','change':'make','execute':'ground',
+                'service':'far','other':'work'}.get(transition.get('kind'),'work')
+    if event=='SubagentStart':return 'side'
+    if event=='PermissionRequest':return 'gate'
+    return None
+
+
+def _caption_trail(record,current,unicode):
+    if current is None:return None
+    transitions=record['transitions']
+    boundary=max((i for i,item in enumerate(transitions)
+                  if item['event'] in {'SessionStart','UserPromptSubmit'}),default=-1)
+    before=[item for item in transitions[boundary+1:]
+            if item['sequence']<current['sequence']]
+    labels=[label for item in before if (label:=_trail_label(item))]
+    if not labels:return None
+    separator=' › ' if unicode else ' > '
+    return 'weave: '+separator.join(labels[-3:])
+
+
+def _caption_phrase(record,width,transition):
+    """Give the observed host transition a personal, Keeper-shaped voice."""
+    event=transition['event'] if transition else record['event']
+    kind=transition.get('kind') if transition else None
+    compact=width<40
+    thread={'inspect':('looking','Look'),'change':('making','Make'),
+            'execute':('ground','Ground'),'service':('far','Far'),
+            'other':('work','Work')}.get(kind,('work','Work'))
+    if event in {'PreToolUse','PostToolUse','PermissionRequest'}:
+        adjective,short=thread
+        if event=='PreToolUse':
+            return f'{short} line out.' if compact else f'I send a {adjective} line outward.'
+        if event=='PostToolUse':
+            return f'{short} line back.' if compact else f'The {adjective} line comes back to me.'
+        return ('At gate; permission next.' if compact else
+                f'I hold at the gate; permission has the next move.')
+    phrases={
+        'SessionStart':('First signal, met.','I meet the session at its first signal.'),
+        'UserPromptSubmit':('New line received.','I turn toward the fresh line.'),
+        'Stop':('Turn settles here.','I let this turn come to rest.'),
+        'Interrupt':('Interrupted line held.','I hold at the interrupted line.'),
+        'SessionEnd':('Session line closes.','The session line closes here.'),
+        'PreCompact':('Gathering the weave.','I gather the weave inward for a fold.'),
+        'PostCompact':('The fold opens.','The fold is through; I open the weave again.'),
+        'SubagentStart':('Side thread opens.','I let a side thread run beside mine.'),
+        'SubagentStop':('Side thread settles.','That side thread closes; its tether falls quiet.'),
+    }
+    return phrases.get(event,('A thread stirs.','A thread stirs.'))[0 if compact else 1]
+
+
+def _caption_detail(record,transition,unicode=True):
+    """Summarise only visible active relations and the bounded observed trail."""
+    details=[]
+    tracked='tracked ' if record.get('relations_incomplete') else ''
+    tools=len(record['active_tools'])
+    branches=len(record['active_subagents'])
+    if tools:
+        details.append(f"{tools} {tracked}call thread{'s' if tools!=1 else ''} still out")
+    if branches:
+        details.append(f"{branches} {tracked}side thread{'s' if branches!=1 else ''} open")
+    trail=_caption_trail(record,transition,bool(unicode))
+    if trail:
+        details.append(trail)
+    return ' · '.join(details) if details else None
+
+
+def _caption_text(record,width,unicode=True):
+    """Translate observed event classes without exposing private hook payloads."""
+    if record['stale']:
+        return 'Signal stale; last pose held.'
+    if record['state']=='unknown':
+        return 'No session signal yet.'
+    if not record.get('event_observed'):
+        return None
+    transition=_current_transition(record)
+    text=_caption_phrase(record,width,transition)
+    detail=_caption_detail(record,transition,bool(unicode))
+    limit=max(0,width-2)
+    full=text+(' · '+detail if detail else '')
+    if detail and ' · weave:' in detail:
+        without_trail=detail.split(' · weave:',1)[0]
+        short=text+(' · '+without_trail if without_trail else '')
+    else:
+        short=full
+    for candidate in (full,short,text):
+        if len(candidate)<=limit:return candidate
+    return text
+
+
+def _caption_stitch(record,now,*,calm,reduced_motion,unicode):
+    """Return a brief bead stitch only for the matching observed transition."""
+    resting='· ' if unicode else '. '
+    if calm or reduced_motion or record['stale'] or record['state']=='unknown':
+        return resting
+    if not record.get('event_observed'):
+        return resting
+    transition=_current_transition(record)
+    if transition is None:
+        return resting
+    age=now-transition['at']
+    if not 0<=age<.72:
+        return resting
+    phase=min(3,int(age/.18))
+    # The two-column bead moves through Keeper's aperture and settles; the
+    # caption text itself never changes or types in.
+    return (('◦·','·◎','·◦') if unicode else ('o.','.O','.o'))[phase-1] if phase else resting
+
+
+def _caption_line(text,width,unicode,prefix=None):
+    if text is None:
+        return ' '*width
+    prefix=prefix or ('· ' if unicode else '. ')
+    limit=max(0,width-len(prefix))
+    if len(text)>limit:
+        text=(text[:max(0,limit-1)]+'…') if unicode and limit else (text[:max(0,limit-3)]+'...') if limit>=3 else text[:limit]
+    return (prefix+text).ljust(width)[:width]
 
 
 def _glyphs(unicode):
@@ -78,6 +207,31 @@ def _glyphs(unicode):
     return {'h':'-','v':'|','up':'/','down':'\\','dot':'.','light':'.',
             'ring':'o','eye':'O','pupil':'|','sat':'o','crown':'^',
             'node':'+','cross':'x','dash':':','trail':'.'}
+
+
+def _ascii_witness(event,kind):
+    """Tiny ASCII painting for terminals without the Braille raster surface."""
+    patterns={
+        'SessionStart':('  /\\   ',' /  \\  ','   o   '),
+        'UserPromptSubmit':('     o> ','   /   ','  /    '),
+        'PreToolUse:inspect':(' /----> ','o /    ','  .    '),
+        'PreToolUse:change':(' \\ /   ','  X    ',' / \\   '),
+        'PreToolUse:execute':('   |   ','   |   ',' __|___'),
+        'PreToolUse:service':(' (---) ','  o -> ','       '),
+        'PreToolUse:other':(' /---. ',' o->  ','      '),
+        'PostToolUse':('<---o  ','  \\   ','       '),
+        'PermissionRequest':('|  o  |','|     |','|-----|'),
+        'SubagentStart':('  /\\  ',' o   ','  \\/  '),
+        'SubagentStop':('  \\/  ',' o   ','  /\\  '),
+        'Interrupt':('/ /   ','  x  ',' / /  '),
+        'PreCompact':('\\   / ','  \\ / ','   o   '),
+        'PostCompact':('   o   ','  / \\  ',' /   \\ '),
+        'Stop':('       ',' o     ','-------'),
+        'SessionEnd':(' \\___/ ','       ','-------'),
+    }
+    motif=(('       ','       ','       ') if not event else
+           patterns.get(f'{event}:{kind}',patterns.get(event,(' /---. ',' o->  ','      '))))
+    return ['+-------+']+['|'+row.ljust(7)[:7]+'|' for row in motif]+['+-------+']
 
 
 def render(snapshot, width, height, blink=False, stale=False, *, mode='balanced',
@@ -96,16 +250,39 @@ def render(snapshot, width, height, blink=False, stale=False, *, mode='balanced'
     if current['active_subagents'] and width>=32:status+=f" / {len(current['active_subagents'])} BRANCH{'ES' if len(current['active_subagents'])!=1 else ''}"
     if width>=50:status+=f" / {'CALM' if calm else 'C:CALM'} {'REDUCED' if reduced_motion else 'R:REDUCED'}  Q:EXIT"
     status=status[:width].ljust(width)
+    caption_text=_caption_text(current,width,bool(unicode))
+    caption_prefix=_caption_stitch(current,now,calm=calm,
+                                   reduced_motion=reduced_motion,unicode=bool(unicode))
+    caption_slot=width>=24 and height>=8
+    caption_rows=2 if caption_slot and width>=44 and height>=30 else 1 if caption_slot else 0
+    if caption_rows and caption_text is not None:
+        observed_live=(not current['stale'] and current['state']!='unknown'
+                       and current.get('event_observed'))
+        first=_caption_phrase(current,width,_current_transition(current)) if observed_live else caption_text
+        first=_caption_line(first,width,bool(unicode),caption_prefix)
+        if caption_rows==2:
+            caption_detail=(_caption_detail(current,_current_transition(current),bool(unicode))
+                            if observed_live else None)
+            second=(_caption_line(caption_detail,width,bool(unicode),'  ↳ ' if unicode else '  > ')
+                    if caption_detail else ' '*width)
+            caption=first+'\n'+second
+        else:
+            caption=_caption_line(caption_text,width,bool(unicode),caption_prefix)
+    elif caption_rows:
+        caption='\n'.join(' '*width for _ in range(caption_rows))
+    else:
+        caption=None
     if detail(width,height) in {'micro','insufficient'}:
         return micro(current,width,height,now,unicode=unicode,reduced_motion=reduced_motion,calm=calm,colour=colour)
     if not unicode and detail(width,height)=='small':
         return miniature(current,width,height,status,now,unicode=False,reduced_motion=reduced_motion,
-                         calm=calm,colour=colour,truecolour=truecolour,mode=mode,lively=lively)
+                         calm=calm,colour=colour,truecolour=truecolour,mode=mode,lively=lively,
+                         caption=caption)
     if unicode:
         return draw_keeper(current,width,height,status,mode=mode,now=now,
                            calm=calm,reduced_motion=reduced_motion,blink=blink,
-                           colour=colour,truecolour=truecolour,lively=lively)
-    body_rows=max(0,height-1)
+                           colour=colour,truecolour=truecolour,lively=lively,caption=caption)
+    body_rows=max(0,height-1-(len(caption.splitlines()) if caption is not None else 0))
     grid=[[' ' for _ in range(width)] for _ in range(body_rows)]
     def put(x,y,ch):
         if body_rows and math.isfinite(x) and math.isfinite(y):
@@ -296,7 +473,17 @@ def render(snapshot, width, height, blink=False, stale=False, *, mode='balanced'
             orbit=now*.28;put(cx+rx*.88+math.cos(orbit)*1.4,cy-ry*.33+math.sin(orbit)*1.2,g['light'])
         if state=='compacting':put(*p(-.13,-.17),g['dot'])
 
-    frame='\n'.join(''.join(row) for row in grid+[list(status)])
+    if width>=32 and height>=12:
+        transition=_current_transition(current) if current.get('event_observed') else None
+        art=_ascii_witness(transition['event'],transition.get('kind') or 'other') if transition else _ascii_witness('','')
+        for y,text in enumerate(art,start=1):
+            if y>=body_rows:break
+            for x,char in enumerate(text,start=1):
+                if x<width and char!=' ' and grid[y][x]==' ':
+                    grid[y][x]=char
+    rows=[''.join(row) for row in grid]
+    if caption is not None:rows.append(caption)
+    frame='\n'.join(rows+[status])
     if colour:
         prefix=colour_code(load_palette().get(state,[160,170,164]),truecolour,current['stale'],calm)
         frame='\n'.join(prefix+row+'\x1b[0m' for row in frame.split('\n'))

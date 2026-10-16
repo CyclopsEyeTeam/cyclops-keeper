@@ -3,11 +3,14 @@ from unittest import mock
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT/'plugins/cyclops-keeper/scripts'));import terminal,terminal_art
 class RasterConformance(unittest.TestCase):
- def test_all_expression_sizes_events_controls_and_phases_match_previous(self):
-  cases=json.loads((ROOT/'tests/fixtures/performance-preserved-frames.json').read_text())['cases'];self.assertEqual(len(cases),320)
+ def test_all_expression_sizes_events_controls_and_phases_match_captioned_golden(self):
+  golden=json.loads((ROOT/'tests/fixtures/captioned-render-frames.json').read_text())
+  self.assertEqual(golden['schema'],'keeper-captioned-render/v2')
+  cases=golden['cases'];self.assertEqual(len(cases),320)
   for case in cases:
-   with self.subTest(state=case['record']['state'],size=case['size'],options=case['options']):
-    got=terminal.render(case['record'],*case['size'],lively=False,**case['options']);self.assertEqual(hashlib.sha256(got.encode()).hexdigest(),case['sha256'])
+   with self.subTest(state=golden['records'][case['record']]['state'],size=case['size'],options=case['options']):
+    record=golden['records'][case['record']]
+    got=terminal.render(record,*case['size'],lively=False,**case['options']);self.assertEqual(hashlib.sha256(got.encode()).hexdigest(),case['sha256'])
  def test_rounding_dash_priority_and_clipping_are_preserved(self):
   surface=terminal_art.Surface(4,3)
   surface.line((-.5,.5),(7.5,10.5),4,1)

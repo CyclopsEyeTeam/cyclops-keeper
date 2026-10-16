@@ -14,7 +14,10 @@ def record(state="idle", **extra):
 
 
 def body(value):
-    return value.rsplit("\n", 1)[0]
+    lines=value.splitlines()
+    height=len(lines);width=len(lines[0]) if lines else 0
+    caption_rows=2 if width>=44 and height>=30 else 1 if width>=24 and height>=8 else 0
+    return "\n".join(lines[:-(caption_rows+1)] if caption_rows else lines[:-1])
 
 
 class TerminalIdentityTests(unittest.TestCase):

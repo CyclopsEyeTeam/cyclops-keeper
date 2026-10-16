@@ -1,35 +1,75 @@
-# Validation — 0.5.0
+# Validation — current Keeper source
 
-## 2026-10-15 expression candidate in this checkout
+## 2026-10-17 expression and renderer work
 
-The new default adds decorative membrane flex, independent trailing-thread sway,
-subtle crown/satellite movement and longer observed arrival/return gestures.
-It retains the established silhouette and uses the incremental terminal output
-and 15-per-second active decoration ceiling. Waiting is quieter; calm,
-reduced-motion and unavailable-evidence handling retain the prior poses.
+The current source keeps Keeper’s body, 15-per-second active motion target,
+observed event gestures, captions, focus composition and incremental terminal
+output. Settled tool and branch routes now live in a four-entry, sparse raster
+layer cache. The cache key covers viewport geometry, pose and active relation
+identity/kind. It bypasses the layer while a matching observed arrival is still
+moving, then reuses the settled routes while the membrane, aperture and ambient
+motion continue. Route geometry remains anchored while the membrane breathes.
+Resize, state and relation changes select a different layer; the LRU is bounded.
 
-The historical 120-frame and 320-frame fixtures remain unchanged. Their tests
-explicitly select the prior expression with the internal `lively=False` render
-argument; they are preservation checks, not golden acceptance of the new art.
-New tests cover motion across full/compact/small sizes, readable observed event
-lifetimes, settling, quieter waiting, quiet controls and unavailable evidence.
-All 80 focused renderer/lifecycle checks passed. This is not live visual or
-whole-process resource acceptance, and does not change earlier HOLD evidence.
+The original `lively=False` art path remains byte-for-byte compatible with the
+preserved 120-frame fixture. The 320-case captioned raster fixture also passes.
+The new dense-cache tests compare cached and direct frames, confirm Keeper’s
+body still moves, and confirm fresh tool/branch arrivals bypass the cache.
 
-A bounded 45-frame, 100x32, one-tool truecolour sample sent 38,532 incremental
-bytes versus 290,604 full-repaint bytes (about 87% less). Composition plus diff
-CPU was 291.03 ms versus 259.20 ms for the restrained expression at the same
-frame times (about 12% more); this single sample is not a repeatability result.
-The full suite log is `/tmp/keeper-life-check.log`; socket/tmux/X11 integration
-remains limited by this execution environment. No installed files were changed.
+Local verification completed on Python 3.12:
 
-## Preserved earlier validation
+- 67 focused expression, identity, caption, layout and pacing tests passed.
+- 4 raster conformance tests passed, including the preserved original frames.
+- The full suite is delegated to the repository’s GitHub Actions workflow on
+  the current source commit; its result will be recorded here after completion.
 
-The sections below describe the earlier candidate and remain historical evidence.
+### Dense PTY comparison
 
-Prepared locally on 13 October 2026; not published. **Functional checks pass;
-resource acceptance remains HOLD.** This is an unpublished release candidate,
-not an accepted resource-performance release.
+`tools/measure.py` profiled the pre-cache renderer at 100×32 with 32 live tools
+and 32 live branches. Across 30 profiled frames, `Surface.curve` consumed 0.494
+seconds of 0.709 seconds total composition time (about 70%); satellite and
+aperture ellipses consumed 0.145 seconds (about 20%). Route hashing consumed
+about 0.002 seconds. This identifies repeated curve and ring rasterization as
+the dominant work in this case.
+
+A focused before/after PTY run used three 20-second CPU windows per version at
+100×32, with 32 tool tethers and 32 branch tethers, the same paced terminal
+loop and affinity. The baseline is the pre-cache source captured by the earlier
+90-case run. No tmux pane was involved.
+
+| Measure | Before cache, median | Current cache, median | Change |
+| --- | ---: | ---: | ---: |
+| Renderer CPU, percent of one core | 35.75% | 23.94% | 33.02% lower |
+| Composition p95 | 40.85 ms | 27.05 ms | 33.77% lower |
+| Sampled peak RSS | 22.88 MiB | 23.61 MiB | +0.69 MiB |
+
+Individual CPU readings were 33.20%, 35.75% and 36.75% before, and 23.13%,
+26.04% and 23.94% after. This is a focused synthetic dense case, not a full
+resource acceptance result; it does not measure tmux overhead, physical display
+FPS, real model load, or the other viewport/activity combinations.
+
+### Whole-suite and host boundaries
+
+The source checkout does not have Git metadata; publication uses the connected
+GitHub repository. Two previous local full-suite attempts encountered errors
+from this host’s custom FUSE-backed tmux executable and temporary mount cleanup.
+The latest local tmux integration subset also stopped at `EPERM` while creating
+its AF_UNIX control socket, before its layout/focus assertions could run. Those
+are environment-limited results, not a source pass or failure. GitHub Actions
+uses Ubuntu’s packaged tmux and Xvfb.
+
+The focused post-cache comparison improves the dense full pane. The complete
+90-case matrix has not been rerun after this cache, so the other resource cells
+and full repeatability remain unmeasured for the current source.
+
+## Historical source and preparation evidence
+
+The sections below describe earlier code snapshots. Their results are retained
+as history and do not classify the current main-branch source.
+
+Prepared locally on 13 October 2026; the then-current release archive was a
+separately frozen snapshot. Its functional and resource findings remain tied to
+the exact source and runs described below.
 
 ## Terminal interface and installation
 
@@ -100,7 +140,7 @@ with session/generation, Codex lifetime, focus and the 48×12 Codex floor intact
 | side | 750.403 ms | 1,308.645 ms | PASS |
 | top | 765.668 ms | 1,270.720 ms | PASS |
 
-## Resource comparison: HOLD
+### Pre-cache 90-case resource comparison (historical HOLD)
 
 90 cases completed: three 20-second CPU windows after two-second warmup for
 idle/working/32-tool+32-branch activity, four physical grids, and a full-size

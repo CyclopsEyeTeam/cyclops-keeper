@@ -25,14 +25,16 @@ def micro(record, columns, rows, now, *, unicode=True, reduced_motion=False, cal
 
 
 def miniature(record, columns, rows, status, now, *, colour=False, truecolour=False,
-              calm=False, reduced_motion=False, unicode=True, mode='balanced', lively=True):
+              calm=False, reduced_motion=False, unicode=True, mode='balanced', lively=True,
+              caption=None):
     # Import only when drawing, avoiding a module-initialization cycle.
     from terminal_art import Surface, life_amount
-    surface=Surface(columns,max(0,rows-1))
+    caption_rows=len(caption.splitlines()) if caption is not None else 0
+    surface=Surface(columns,max(0,rows-1-caption_rows))
     frozen=record['stale'] or record['state']=='unknown'
     state='unknown' if frozen else record['state']
     life=life_amount(record,lively,calm,reduced_motion)
-    width,height=columns*2,(rows-1)*4
+    width,height=columns*2,surface.rows*4
     portrait=rows>=columns*.65
     prominent=mode=='focus' or portrait
     scale=min(width/48,max(1,height)/52)*(1 if prominent else .9)
@@ -73,5 +75,6 @@ def miniature(record, columns, rows, status, now, *, colour=False, truecolour=Fa
     if tools:label+=f' T:{tools}'+('+' if tools>2 else '')
     if branches:label+=f' B:{branches}'+('+' if branches>1 else '')
     if record.get('relations_incomplete'):label+=' ?'
-    return surface.frame(label[:columns].ljust(columns),colour=colour,truecolour=truecolour,
+    return surface.frame(label[:columns].ljust(columns),caption=caption,
+                         colour=colour,truecolour=truecolour,
                          dim=frozen or state=='ended',calm=calm,unicode=unicode)

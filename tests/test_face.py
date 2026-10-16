@@ -385,6 +385,35 @@ class FaceTests(unittest.TestCase):
                 'active_subagents':agents or [],'active_tool_count':len(tools or []),
                 'active_subagent_count':len(agents or []),'transitions':transitions or []}
 
+    def test_tall_terminal_keeps_two_rows_for_event_grounded_caption(self):
+        import hashlib
+        sys.path.insert(0,str(SCRIPTS))
+        import terminal
+        tool={'key':hashlib.sha256(b'caption-tool').hexdigest(),
+              'kind':'inspect','sequence':20}
+        transition={'sequence':20,'event':'PreToolUse','at':1000.8,
+                    'key':tool['key'],'kind':'inspect'}
+        snapshot=self.terminal_snapshot('tool','PreToolUse',[tool],transitions=[transition])
+        frame=terminal.render(snapshot,56,34,now=1001)
+        lines=frame.splitlines()
+        self.assertEqual(len(lines),34)
+        self.assertTrue(all(len(line)==56 for line in lines))
+        self.assertIn('I send a looking line outward.',lines[-3])
+        self.assertIn('1 call thread still out',lines[-2])
+        self.assertIn('KEEPER',lines[-1])
+
+    def test_event_canvas_requires_the_matching_observed_transition(self):
+        sys.path.insert(0,str(SCRIPTS))
+        import terminal
+        snapshot=self.terminal_snapshot('idle','SessionStart')
+        absent=terminal.render(snapshot,80,50,now=1001,reduced_motion=True)
+        snapshot['transitions']=[{'sequence':19,'event':'SessionStart','at':1000}]
+        stale=terminal.render(snapshot,80,50,now=1001,reduced_motion=True)
+        snapshot['sequence']=19
+        observed=terminal.render(snapshot,80,50,now=1001,reduced_motion=True)
+        self.assertEqual(absent,stale)
+        self.assertNotEqual(stale,observed)
+
     def test_balanced_and_focus_are_distinct_responsive_compositions(self):
         sys.path.insert(0,str(SCRIPTS))
         import terminal
