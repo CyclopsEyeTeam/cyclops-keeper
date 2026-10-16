@@ -18,10 +18,12 @@ body still moves, and confirm fresh tool/branch arrivals bypass the cache.
 
 Local verification completed on Python 3.12:
 
-- 67 focused expression, identity, caption, layout and pacing tests passed.
+- 68 focused expression, identity, caption, layout and pacing tests passed.
 - 4 raster conformance tests passed, including the preserved original frames.
-- The full suite is delegated to the repository’s GitHub Actions workflow on
-  the current source commit; its result will be recorded here after completion.
+
+The full repository suite passed on both supported CI interpreters: 162 tests
+on Python 3.10 and 162 on Python 3.12, under Ubuntu 24.04 with packaged tmux
+and isolated X11. See the [GitHub Actions run](https://github.com/CyclopsEyeTeam/cyclops-keeper/actions/runs/38982158688).
 
 ### Dense PTY comparison
 
@@ -55,8 +57,8 @@ GitHub repository. Two previous local full-suite attempts encountered errors
 from this host’s custom FUSE-backed tmux executable and temporary mount cleanup.
 The latest local tmux integration subset also stopped at `EPERM` while creating
 its AF_UNIX control socket, before its layout/focus assertions could run. Those
-are environment-limited results, not a source pass or failure. GitHub Actions
-uses Ubuntu’s packaged tmux and Xvfb.
+are environment-limited local results; the full GitHub suite passed with the
+workflow’s Ubuntu tmux and Xvfb.
 
 The focused post-cache comparison improves the dense full pane. The complete
 90-case matrix has not been rerun after this cache, so the other resource cells

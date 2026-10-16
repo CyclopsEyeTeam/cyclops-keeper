@@ -13,14 +13,18 @@ Local verification:
   falling from 40.85 ms to 27.05 ms. Sampled RSS increased by 0.69 MiB.
 - The before/after comparison exercises stable tool and branch tethers only;
   it is not the complete 90-case resource matrix.
+- GitHub Actions passed the full 162-test suite on Python 3.10 and 3.12 under
+  Ubuntu 24.04 with packaged tmux and isolated X11:
+  https://github.com/CyclopsEyeTeam/cyclops-keeper/actions/runs/38982158688
 
 The full 90-case matrix predates the tether-layer cache. Its measured source
 had failing CPU and repeatability cells, and endpoint CPU frequency ranged from
 about 0.8 to 4.4 GHz. Those records remain in docs/VALIDATION.md and the
 HDD-backed run folder. A full matrix against the current source has not run.
 
-GitHub Actions on the current source commit is the whole-suite check. Update
-this file with the run link and final Python-version results after it completes.
+Local tmux integration could not create an AF_UNIX socket in this restricted
+sandbox. The successful GitHub run exercises those checks in the supported CI
+environment.
 
 The public release archive is a frozen snapshot from an earlier source commit.
 It does not contain the current main-branch changes.
