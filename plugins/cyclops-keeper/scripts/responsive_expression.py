@@ -33,8 +33,10 @@ def miniature(record, columns, rows, status, now, *, colour=False, truecolour=Fa
     state='unknown' if frozen else record['state']
     life=life_amount(record,lively,calm,reduced_motion)
     width,height=columns*2,(rows-1)*4
-    scale=min(width/48,max(1,height)/52)*(1 if mode=='focus' else .9)
-    cx,cy=width*(.43 if mode=='focus' else .40),height*.43
+    portrait=rows>=columns*.65
+    prominent=mode=='focus' or portrait
+    scale=min(width/48,max(1,height)/52)*(1 if prominent else .9)
+    cx,cy=width*(.43 if prominent else .40),height*.43
     fold=.6 if state=='compacting' else 1
     breathe=1 if frozen or reduced_motion or calm else 1+math.sin(now*.6)*(.015+.02*life)
     def p(x,y):return (cx+x*scale*fold*breathe,cy+y*scale*fold*breathe)

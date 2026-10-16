@@ -95,21 +95,71 @@ class Surface:
         count=max(8, math.ceil(length * 1.5))
         prior=a
         samples=_complete_basis(count) if until==1 and count<=256 else _basis_samples(count,until)
+        masks,roles,priorities=self.masks,self.roles,self.priorities
+        width,height=self.columns*2,self.rows*4
+        bits=BITS
+        previous_drawn=False
         for wa,wb,wc,wd,fraction in samples:
             point=(wa*a[0]+wb*b[0]+wc*c[0]+wd*d[0],
                    wa*a[1]+wb*b[1]+wc*c[1]+wd*d[1])
             if not dash or int(fraction*length/dash) % 2 == 0:
-                self.line(prior,point,role,priority)
+                ax,ay=prior
+                dx,dy=point[0]-ax,point[1]-ay
+                distance=math.hypot(dx,dy)
+                segment_count=max(1,math.ceil(distance*2))
+                # Adjacent curve segments share an endpoint. Preserve its
+                # coverage while rasterizing the curve without one Python
+                # method dispatch per sample or duplicate endpoint writes.
+                first=1 if previous_drawn else 0
+                last_x=round(ax) if previous_drawn else None
+                last_y=round(ay) if previous_drawn else None
+                for i in range(first,segment_count+1):
+                    u=i/segment_count
+                    x,y=round(ax+dx*u),round(ay+dy*u)
+                    if not (0<=x<width and 0<=y<height):
+                        continue
+                    if x==last_x and y==last_y:
+                        continue
+                    row,col=y//4,x//2
+                    masks[row][col]|=bits[y%4][x%2]
+                    if priority>=priorities[row][col]:
+                        roles[row][col]=role
+                        priorities[row][col]=priority
+                    last_x,last_y=x,y
+                previous_drawn=True
+            else:
+                previous_drawn=False
             prior=point
         return prior
 
     def ellipse(self, centre, rx, ry, role=1, priority=1, start=0, end=math.tau):
         count=max(12, math.ceil((end-start)*max(rx,ry)*2))
         prior=(centre[0]+math.cos(start)*rx,centre[1]+math.sin(start)*ry)
+        masks,roles,priorities=self.masks,self.roles,self.priorities
+        width,height=self.columns*2,self.rows*4
+        bits=BITS
         for i in range(1,count+1):
             angle=start+(end-start)*i/count
             point=(centre[0]+math.cos(angle)*rx,centre[1]+math.sin(angle)*ry)
-            self.line(prior,point,role,priority)
+            ax,ay=prior
+            dx,dy=point[0]-ax,point[1]-ay
+            distance=math.hypot(dx,dy)
+            segment_count=max(1,math.ceil(distance*2))
+            first=0 if i==1 else 1
+            last_x=last_y=None
+            for j in range(first,segment_count+1):
+                u=j/segment_count
+                x,y=round(ax+dx*u),round(ay+dy*u)
+                if not (0<=x<width and 0<=y<height):
+                    continue
+                if x==last_x and y==last_y:
+                    continue
+                row,col=y//4,x//2
+                masks[row][col]|=bits[y%4][x%2]
+                if priority>=priorities[row][col]:
+                    roles[row][col]=role
+                    priorities[row][col]=priority
+                last_x,last_y=x,y
             prior=point
 
     def frame(self, status, *, colour=False, truecolour=False, dim=False, calm=False, unicode=True):
@@ -155,7 +205,10 @@ def draw_keeper(record, columns, rows, status, *, mode='balanced', now=0,
     gestures=not reduced_motion and not frozen
     animate=gestures and state!='ended'
     life=life_amount(record,lively,calm,reduced_motion)
-    scale=min(w/610,h/430)*(.96 if mode=='focus' else .74)
+    # Tall side panes need the Focus-size envelope; keep the existing uniform
+    # geometry so the aperture and crown remain the same Keeper at portrait sizes.
+    portrait=rows>=columns*.65
+    scale=min(w/610,h/430)*(.96 if mode=='focus' or portrait else .74)
     cx,cy=w*.425,h*.465
     fold=.24 if state=='compacting' else 0
     breath=1+(math.sin(now*.6)*(.007+.015*life) if animate and not calm else 0)
