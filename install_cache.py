@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Keep old session hooks available after Codex replaces its version cache."""
 import fcntl
+import json
 import os
 from pathlib import Path
 import re
@@ -37,8 +38,12 @@ def refresh():
                 if not (stat.S_ISREG(mode) or stat.S_ISDIR(mode)):
                     raise ValueError('Refusing a non-regular Keeper cache entry')
             shutil.copytree(folder, backup/folder.name)
+        version=json.loads((Path(__file__).parent/'plugins/cyclops-keeper/.codex-plugin/plugin.json').read_text())['version']
+        succeeded=False
         try:
-            return subprocess.run(['codex', 'plugin', 'add', 'cyclops-keeper@cyclops-keeper']).returncode
+            code=subprocess.run(['codex', 'plugin', 'add', 'cyclops-keeper@cyclops-keeper']).returncode
+            succeeded=code == 0
+            return code
         finally:
             plain(base)
             base.mkdir(parents=True, exist_ok=True)
@@ -50,6 +55,12 @@ def refresh():
                     shutil.copytree(saved, staging/'version')
                     os.rename(staging/'version', target)
                     staging.rmdir()
+                if succeeded and saved.name != version:
+                    # Keep old hook imports alive, but never advertise a second install.
+                    metadata=target/'.codex-plugin'
+                    if metadata.exists():
+                        plain(metadata)
+                        shutil.rmtree(metadata)
 
 
 if __name__ == '__main__':

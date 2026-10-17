@@ -75,12 +75,16 @@ elif args[:1] != ['plugin']:
             with self.subTest(failed=bool(fail)):
                 old=self.home/'.codex/plugins/cache/cyclops-keeper/cyclops-keeper/0.4.0'
                 (old/'scripts').mkdir(parents=True,exist_ok=True)
+                (old/'.codex-plugin').mkdir(exist_ok=True)
+                (old/'.codex-plugin/plugin.json').write_text('{"name":"cyclops-keeper","version":"0.4.0"}')
                 hook=old/'scripts/hook.py';hook.write_text('print("original hook")\n')
                 digest=hashlib.sha256(hook.read_bytes()).hexdigest()
                 result=self.run_script('install.sh',env_override={'FIXTURE_INSTALL_FAIL':fail})
                 self.assertEqual(result.returncode == 0, not bool(fail),result.stderr)
                 self.assertTrue(hook.is_file(),'refresh removed the active session hook')
                 self.assertEqual(hashlib.sha256(hook.read_bytes()).hexdigest(),digest)
+                if not fail:
+                    self.assertFalse((old/'.codex-plugin/plugin.json').exists(), 'old manifest remains discoverable')
 
     def test_plain_install_enables_codex_and_refresh_is_idempotent(self):
         first = self.run_script('install.sh')

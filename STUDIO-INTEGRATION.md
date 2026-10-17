@@ -28,4 +28,4 @@ Studio sends Keeper questions in `studio.json` under `keeperAsk`, with an explic
 
 The accompanying Studio UI/backend patch is not included in this repository, and `install.sh` does not modify Studio.
 
-The installer preserves older numeric cache versions for open sessions after a refresh, including a failed refresh. Rollback copies are retained under Codex plugin data (`cyclops-keeper-install`); they are installation state, not painting data. Existing sessions still need relaunching to load new code.
+The installer preserves older numeric cache files for open sessions after a refresh. Successful upgrades remove their old plugin manifests so only the current version is discoverable; failed upgrades preserve the original metadata. Rollback copies are retained under Codex plugin data (`cyclops-keeper-install`); they are installation state, not painting data. Existing sessions still need relaunching to load new code.

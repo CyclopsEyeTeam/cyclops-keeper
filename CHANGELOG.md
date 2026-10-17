@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.6.2 — Single installed version · 17 October 2026
+
+- Retain old-session hook files without their plugin manifests after a successful upgrade, preventing old caches from being rediscovered as installed versions. Failed upgrades retain the original installation metadata.
+
 ## 0.6.1 — Reactive lower canvas · 17 October 2026
 
 - Restore the event-reactive lower drawing while work is active, with the saved painting above. Return to the authored sketch or saved outline when work settles; preserve quiet-mode and stale-signal restraint.
