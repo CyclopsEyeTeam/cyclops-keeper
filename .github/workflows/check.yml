@@ -21,7 +21,9 @@ jobs:
       - name: Install terminal test dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y tmux gnome-terminal xvfb xauth xclip x11-utils libxtst6 dbus-x11 ripgrep
+          sudo apt-get install -y tmux gnome-terminal xvfb xauth xclip x11-utils libxtst6 dbus-x11 ripgrep ffmpeg nodejs
+      - name: Install image export test dependency
+        run: python -m pip install "Pillow>=10,<13"
       - name: Run checks on an isolated X11 display
         env:
           PYTHONDONTWRITEBYTECODE: "1"

@@ -89,7 +89,7 @@ def crest_value(value):
 
 @lru_cache(maxsize=24)
 def crest_lane(encoded,width,colour,truecolour,calm,theme='classic',phase=0):
-    """Four rows of authored expression with bounded decorative motion."""
+    """Compact constellation with bounded decorative motion and optional phrase."""
     from terminal_art import colour_codes
     value=json.loads(encoded) if encoded else {'motif':'constellation','phrase':''}
     motifs={
@@ -97,8 +97,7 @@ def crest_lane(encoded,width,colour,truecolour,calm,theme='classic',phase=0):
         'moon':('       .-``-.    *       ', "   .   `-..-'        .   "),
         'ribbon':('   .---.      .---.      ', "  /     `----'     `--.   "),
     }
-    title='Keeper / crest - authored' if encoded else 'Keeper / decorative crest'
-    lines=[title[:width].center(width)]
+    lines=[]
     # A twelve-step orbit, never a progress indicator. The authored phrase
     # stays fixed while the constellation, moon or ribbon gently flexes.
     orbit=(0,1,2,3,2,1,0,-1,-2,-3,-2,-1)[phase%12]
@@ -113,10 +112,10 @@ def crest_lane(encoded,width,colour,truecolour,calm,theme='classic',phase=0):
         lines.append((' '*padding+line)[:width].ljust(width))
     phrase=value.get('phrase','')
     if len(phrase)>width:phrase=phrase[:width-3]+'...'
-    lines.append(phrase.center(width))
+    if phrase:lines.append(phrase.center(width))
     if colour:
         codes=colour_codes(truecolour,False,calm,theme)
-        lines=[codes[2 if index in (1,2) else 10]+line+'\x1b[0m' for index,line in enumerate(lines)]
+        lines=[codes[2 if index in (0,1) else 10]+line+'\x1b[0m' for index,line in enumerate(lines)]
     return '\n'.join(lines)
 
 
@@ -234,9 +233,9 @@ class Reader:
 def lane(encoded,width,rows,unicode,colour,truecolour,calm,theme='classic'):
     """Static, bounded canvas. No animation or activity indicators here."""
     value=json.loads(encoded)
-    label='Keeper / authored'
+    authored=any(value.get(key) for key in ('caption','strokes','labels'))
     text=value.get('caption')
-    lines=[label[:width].ljust(width)]
+    lines=[]
     if text:
         wrapped=textwrap.wrap(text,width=max(1,width-2)) or ['']
         lines.extend(('  '+line)[:width].ljust(width) for line in wrapped[:min(2,rows-1)])
@@ -270,5 +269,11 @@ def lane(encoded,width,rows,unicode,colour,truecolour,calm,theme='classic'):
                 surface.glyphs[(row,col+offset)]=char
         lines.extend(surface.frame('',unicode=unicode,colour=colour,truecolour=truecolour,
                                    calm=calm,theme=theme).splitlines()[:art_rows])
+    if not authored and rows>=4 and width>=6:
+        # A fresh session has its own blank space; never borrow another launch's strokes.
+        corners=('╭','╮','╰','╯') if unicode else ('+','+','+','+')
+        lines.append(('  '+corners[0]+' '*(width-6)+corners[1]+'  ')[:width])
+        lines.extend(' '*width for _ in range(rows-len(lines)-1))
+        lines.append(('  '+corners[2]+' '*(width-6)+corners[3]+'  ')[:width])
     lines.extend(' '*width for _ in range(rows-len(lines)))
     return '\n'.join(lines)

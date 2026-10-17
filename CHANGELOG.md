@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+- Remove live canvas headings and idle toolbar spacer rows; combine activity wording with attachment status and reserve a larger sketch area. Fresh sessions get a read-only outline of the latest saved Keeper painting until an authored sketch arrives.
+- Add attachment-bound Free/Work-inspired painting choice and `painting_brief` MCP. This guides explicit assistant composition; it does not invoke a model automatically.
+- Truest quantizes after resizing, before captions. Raster-backed SVG uses an sRGB discrete filter on its painting group and native caption text outside. Levels: 6, 8, 16 (default), 32, 64 or 256 (off). No invented shadows or depth pass.
+
+
+- Show a bounded reported token count beside a painting when supplied; omit unknown usage. Recurring-picture instructions now include short follow-ups and ask for composition early in the turn.
+- Preserve a lower live draw box beside the saved painting layout, enlarge Keeper with the focus envelope, and replace the crest heading with a compact moving constellation. Fresh sessions use the latest saved painting as a line-art fallback until explicitly painted; quiet modes freeze the constellation.
+
+
+- Grow the overhead painting toward pane width and add clickable terminal Story, Convert and Roll menus, keyboard alternatives, completion/progress bars and cancellation. Story reads all three painters with folder credit; background exports create unique PNG/raster-backed SVG galleries and MP4 rolls with painting-derived music. Small-pane resize preserves playback/jobs.
+
+- Saved paintings now have an overhead terminal panel using Prism’s shared raster math in a separate worker; the live sketch remains below Keeper. Small panes preserve the original layout.
+- Correct Keeper skill invocation (`$cyclops-keeper:keeper`), explicitly declare its skill directory, and document opt-in per-message/active-work painting for both surfaces.
+
+- Add explicitly authored shared paintings, strict validation, exclusive atomic storage, read-only peer access and a yielding standalone preview. The 0.5.0 resource HOLD remains unchanged; the user reported Studio confirmation after local installation.
+
 - Add a static constellation crest above Keeper in taller panes, with a launch-bound `crest` tool for a moon, ribbon or constellation and a short authored phrase; preserve the bottom canvas and observed status.
 
 - Expand the authored drawing box to about 40% of pane height and nearly full width; add ellipses, rectangles, cubic curves, short labels and eight themed inks, with bounded geometry and cached static rendering.

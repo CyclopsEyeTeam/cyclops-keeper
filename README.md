@@ -182,3 +182,25 @@ platform limits and retained historical evidence.
 
 MIT licensed. [Provenance](PROVENANCE.md). Independent project from the Cyclops
 Eye Team; not made, endorsed or supported by OpenAI.
+
+## Keeper paintings
+
+Keeper makes deliberate saved paintings through `$cyclops-keeper:keeper paint` and the separate `save_painting` / `read_paintings` MCP tools. The latest valid saved Keeper painting appears above Keeper in panes at least 32 columns by 32 rows. The live-expression `paint` tool keeps its separate lower sketch space. Small panes hide the overhead. The launcher and historical 0.5.0 resource HOLD remain unchanged. Composition is explicitly assistant-authored; there is no autonomous painting engine or fixed style.
+
+See [Painting Foundation V0](docs/PAINTING-V0.md) for validation, storage, peer reading and standalone preview. The user reported Studio confirmation after the V0 installation. That confirmation does not change the historical resource HOLD.
+
+The skill is discoverable as `cyclops-keeper:keeper`; invoke it with `$`, not `/keeper`. You may opt into one picture per user message, plus roughly every 15 minutes of long active work, and ask for both saved and live pictures. That cadence is assistant guidance within the conversation, not an autonomous idle timer. Restart Keeper to load installed plugin updates.
+
+### Painting buttons
+
+The overhead grows toward the pane width, up to half the pane height, while retaining Keeper, the crest and lower live sketch. Click **Story**, **Convert** or **Roll** inside Keeper’s pane. Mouse support uses the terminal’s SGR protocol; keyboard alternatives in Keeper’s pane are `s` (story), `v` (convert), `o` (roll), Space (pause/play), `p`/`n` (previous/next), `e` (end story), and `x` (cancel export). Normal input in the Codex pane is unchanged.
+
+- **Story:** choose this launch’s session or **All saved**, including older Keeper/Spark/Prism paintings. Each page reveals for 2.4 seconds, holds for 7, and stays on the last page. Pause/play, previous, next and end buttons sit below the painting. Folder determines painter credit.
+- **Convert:** choose the held picture or all paintings in the selected scope; choose truest, faithful or both, then HD (1920 wide) or 4K (3840 wide). Truest keeps terminal cell weight and offers 6, 8, 16 (default), 32, 64 or 256 colour levels. These modes use no model tokens. PNG, raster-backed SVG and an HTML gallery are saved together. SVG contains the rendered image, not editable vector marks. Faithful renders the same marks into a bounded internal raster and smoothly enlarges it; it is not a new composition.
+- **Roll:** choose session or all saved, then 720p, 1080p or portrait Short. Music derived from the marks is on by default and can be toggled off. The menu shows count and estimated duration; portrait rolls over three minutes ask for confirmation. Each roll has an eye title card, revealed paintings, date/painter credits, crossfades and a 30fps H.264/AAC MP4. Source animation is 12fps; the encoder duplicates frames to 30fps.
+
+Exports run separately with a progress bar, percentage, completion at **100%**, and **Cancel**. Resizing to a small pane hides the surface without cancelling playback or a job. Closing Keeper or changing the attachment stops owned jobs. Completed exports appear in unique `keeper-paintings/convert-…/` or `keeper-paintings/roll-…/` directories with `index.html`; peer folders and original JSON paintings are unchanged.
+
+Export dependencies are Pillow (`python3-pil`) and ffmpeg for rolls. Roll work storage uses the configured Cyclops HDD scratch volume and refuses a missing/wrong volume. At most 60 paintings per export; the selectable collection is limited to 1000, with an explicit message rather than silent truncation. No automatic refined/interpretive model calls, transcript copying, or shared painting parts are added.
+
+The **Free/Work** button selects independent or broadly work-inspired subjects for the next assistant composition. The assistant reads the launch-bound painting brief; this is not a background model call. Fresh windows show an outline of the latest saved Keeper painting until a live sketch arrives. Reported painting token counts appear when supplied; unknown usage is omitted.

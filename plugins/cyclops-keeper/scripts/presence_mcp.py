@@ -4,12 +4,17 @@ import json
 import sys
 sys.dont_write_bytecode=True
 from expression import publish, PALETTE
+import painting_mcp
 
 DESCRIPTION=('Author a small expression for this launch\'s Keeper. This is creative display, '
  'not telemetry or hidden thought. Never copy prompts, private reasoning, tool arguments/results, '
  'credentials, paths or transcript text. Use sparingly alongside real work; never spawn an agent '
  'just to keep this space active. When the user has invited Keeper expression, you may occasionally '
  'leave an original line or sketch during work without needing a new request each time. Silence is fine. '
+ 'When the user opts into pictures per message, compose early once per user message, including short follow-ups, and roughly every 15 minutes '
+ 'during long active work, best effort; never run an idle timer or model loop. If both surfaces were requested, '
+ 'Read painting_brief first for the user-selected Free or Work-inspired mode. '
+ 'use save_painting for the overhead saved composition and paint for a separate lower live sketch. '
  'Paintings and captions cannot create agents or change work status.')
 
 def schema(properties,required):
@@ -36,6 +41,7 @@ TOOLS=[
 for tool in TOOLS:
     tool['annotations']={'readOnlyHint':False,'destructiveHint':False,'openWorldHint':False}
 
+TOOLS.extend(painting_mcp.TOOLS)
 
 def respond(request):
     ident=request.get('id');method=request.get('method');params=request.get('params',{})
@@ -50,8 +56,11 @@ def respond(request):
     elif method=='tools/list':result={'tools':TOOLS}
     elif method=='tools/call':
         try:
-            if params.get('name') not in {'say','paint','crest','clear'}:raise ValueError('Unknown Keeper tool')
-            text=publish(params['name'],params.get('arguments',{}))
+            if params.get('name') in {'save_painting','read_paintings','painting_brief'}:
+                text=painting_mcp.call(params['name'],params.get('arguments',{}))
+            else:
+                if params.get('name') not in {'say','paint','crest','clear'}:raise ValueError('Unknown Keeper tool')
+                text=publish(params['name'],params.get('arguments',{}))
             result={'content':[{'type':'text','text':text}]}
         except (ValueError,OSError,TypeError,KeyError) as error:
             # Validation messages are fixed; OS errors may disclose paths.
@@ -63,13 +72,13 @@ def respond(request):
 
 def main():
     while True:
-        raw=sys.stdin.buffer.readline(32769)
+        raw=sys.stdin.buffer.readline(524289)
         if not raw:break
-        if len(raw)>32768:
+        if len(raw)>524288:
             # Close rather than treating fragments of an oversized request as requests.
             break
         try:
-            request=json.loads(raw)
+            request=painting_mcp.store.decode(raw, limit=524288)
             if not isinstance(request,dict):raise ValueError()
             response=respond(request)
         except (ValueError,TypeError):

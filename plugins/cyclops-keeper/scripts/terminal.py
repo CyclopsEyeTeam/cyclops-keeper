@@ -265,8 +265,10 @@ def _ascii_witness(event,kind):
     return ['+-------+']+['|'+row.ljust(7)[:7]+'|' for row in motif]+['+-------+']
 
 
-def render(snapshot, width, height, blink=False, stale=False, *, expression=None, colour=False, crest=False, **options):
+def render(snapshot, width, height, blink=False, stale=False, *, expression=None, colour=False, crest=False, painting_lines=None, sketch_lines=None, **options):
     options['colour']=colour
+    from painting_terminal import panel_rows
+    overhead=(painting_lines or [])[:panel_rows(width,height)]
     from expression import lane, crest_lane
     # Crest movement is decorative; status remains the final row.
     top=[]
@@ -280,21 +282,29 @@ def render(snapshot, width, height, blink=False, stale=False, *, expression=None
         top=crest_lane(json.dumps(custom,sort_keys=True) if custom else '',width,
                        colour,options.get('truecolour',False),options.get('calm',False),
                        options.get('theme','classic'),phase).splitlines()
-    bottom=bool(expression and any(expression.get(key) for key in ('caption','strokes','labels')))
-    rows=min(24,max(6,height*2//5)) if bottom and width>=32 and height>=18 else 0
+    height-=len(overhead)
+    bottom=bool(overhead or (expression and any(expression.get(key) for key in ('caption','strokes','labels'))))
+    rows=min(24,max(6,height//3 if overhead else height*2//5)) if bottom and width>=32 and height>=18 else 0
+    if overhead:
+        options['mode']='focus'
+        options['compact_caption']=True
     body=_render_body(snapshot,width,height-rows-len(top),blink,stale,**options).splitlines()
     artwork=[]
-    if rows:
-        artwork=lane(json.dumps(expression,sort_keys=True,separators=(',',':')),
+    if rows and sketch_lines and not (expression and any(expression.get(k) for k in ('strokes','labels'))):
+        artwork=sketch_lines[:rows]+[' '*width]*max(0,rows-len(sketch_lines))
+        if expression and expression.get('caption'):
+            artwork[0]=_caption_line(expression['caption'],width,options.get('unicode',True))
+    elif rows:
+        artwork=lane(json.dumps(expression or {},sort_keys=True,separators=(',',':')),
                      width,rows,options.get('unicode',True),colour,
                      options.get('truecolour',False),options.get('calm',False),
                      options.get('theme','classic')).splitlines()
-    return '\n'.join(top+body[:-1]+artwork+body[-1:])
+    return '\n'.join(overhead+top+body[:-1]+artwork+body[-1:])
 
 
 def _render_body(snapshot, width, height, blink=False, stale=False, *, mode='balanced',
            now=0, calm=False, reduced_motion=False, unicode=True,
-           colour=False, truecolour=False, lively=True, theme='classic'):
+           colour=False, truecolour=False, lively=True, theme='classic', compact_caption=False):
     """Draw one exact cell grid. Tool routes are key-stable and viewport-clamped."""
     width=max(1,int(width));height=max(1,int(height))
     mode='focus' if mode=='focus' else 'balanced'
@@ -311,7 +321,7 @@ def _render_body(snapshot, width, height, blink=False, stale=False, *, mode='bal
     caption_text=_caption_text(current,width,bool(unicode))
     caption_prefix=_caption_stitch(current,now,calm=calm,
                                    reduced_motion=reduced_motion,unicode=bool(unicode))
-    caption_slot=width>=24 and height>=8
+    caption_slot=width>=24 and height>=8 and not compact_caption
     caption_rows=2 if caption_slot and width>=44 and height>=30 else 1 if caption_slot else 0
     if caption_rows and caption_text is not None:
         observed_live=(not current['stale'] and current['state']!='unknown'
@@ -697,10 +707,14 @@ def main():
                   'max_tools':0,'max_subagents':0,'unicode':unicode,'colour':colour,
                   'mode':mode,'calm':calm,'reduced_motion':reduced_motion}
     def terminate(_sig,_frame):raise KeyboardInterrupt
+    from painting_terminal import Reader as PaintingReader
+    painting_reader=PaintingReader()
+    from painting_controls import Input
+    painting_input=Input()
     try:
         if not args.once:
             signal.signal(signal.SIGTERM,terminate);tty.setcbreak(sys.stdin)
-            sys.stdout.write('\x1b[?1049h\x1b[?25l\x1b[2J');sys.stdout.flush()
+            sys.stdout.write('\x1b[?1049h\x1b[?25l\x1b[2J\x1b[?1000h\x1b[?1006h');sys.stdout.flush()
             if args.attachment:
                 from launcher_link import atomic, process_identity
                 atomic(args.attachment.with_suffix('.ready'),process_identity(os.getpid()))
@@ -727,7 +741,9 @@ def main():
             begin=time.process_time() if args.metrics else None
             authored=(expression_reader.load(args.attachment,args.session,attachment_identity)
                       if args.attachment and attached else None)
-            frame=body_cache.frame(current or 'unknown',width,height,expression=authored,
+            overhead=painting_reader.load(args.attachment if attached else None,args.session,attachment_identity,
+                         width,height,colour and not args.once,unicode) if not args.once else []
+            frame=body_cache.frame(current or 'unknown',width,height,expression=authored,painting_lines=overhead,sketch_lines=painting_reader.sketch if overhead else None,
                          attachment_identity=attachment_identity,
                          blink=not reduced_motion and state in {'idle','stopped'} and time.time()%6.5<.14,
                          stale=stale,mode=mode,now=time.time(),calm=calm,
@@ -735,6 +751,10 @@ def main():
                          colour=colour and not args.once,truecolour=truecolour,theme=args.theme,crest=True)
             if args.attachment and detail(width,height) in {'full','compact','small'} and width>=18:
                 message=('Session: attached / '+LABELS.get(state,LABELS['unknown'])+(' / OLD SIGNAL' if stale else '')) if attached else 'Session: unattached — waiting for this launch’s trusted Keeper hook'
+                if attached and overhead:
+                    words=_caption_text(_record(current or 'unknown',stale),width,bool(unicode))
+                    message='Attached / '+LABELS.get(state,LABELS['unknown'])+(' / OLD SIGNAL' if stale else '')
+                    if words:message+=' | '+words
                 if detail(width,height)=='small':
                     # Put the state first so the attachment prefix cannot erase
                     # distinctions when the last row is narrow or motion is off.
@@ -763,21 +783,29 @@ def main():
                     sys.stdout.write(output);sys.stdout.flush()
                 last_frame=frame
             cadence=.45 if reduced_motion else .25 if calm or state in {'idle','waiting','unknown','stopped'} else .09
+            if painting_reader.busy:cadence=min(cadence,.1)
+            if painting_input.data:cadence=min(cadence,.06)
             ready=select.select([sys.stdin],[],[],body_cache.wait_timeout(cadence))[0]
-            if ready:
-                key=os.read(sys.stdin.fileno(),1)
-                if key in {b'q',b'Q',b'\x1b',b'\x03'}:break
+            data=os.read(sys.stdin.fileno(),4096) if ready else b''
+            quit_requested=False
+            for event in painting_input.feed(data):
+                if event[0]=='click':painting_reader.event(event);continue
+                key=event[1]
+                if key in {b'q',b'Q',b'\x1b',b'\x03'}:quit_requested=True;break
+                if painting_reader.event(event):continue
                 if key in {b'c',b'C'}:calm=not calm;last_frame=None
                 if key in {b'r',b'R'}:reduced_motion=not reduced_motion;last_frame=None
                 if args.attachment and key in {b'c',b'C',b'r',b'R'}:
                     presentation_state.save(args.attachment,calm,reduced_motion)
+            if quit_requested:break
     except KeyboardInterrupt:
         pass
     finally:
+        painting_reader.close()
         if not args.once:
             termios.tcsetattr(sys.stdin,termios.TCSADRAIN,attrs)
             signal.signal(signal.SIGTERM,old_handler)
-            sys.stdout.write('\x1b[0m\x1b[?25h\x1b[?1049l');sys.stdout.flush()
+            sys.stdout.write('\x1b[?1000l\x1b[?1006l\x1b[0m\x1b[?25h\x1b[?1049l');sys.stdout.flush()
         if args.attachment:
             from launcher_link import cleanup_dead_launcher
             cleanup_dead_launcher(args.attachment)

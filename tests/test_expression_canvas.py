@@ -16,7 +16,7 @@ class ExpressionCanvas(unittest.TestCase):
     def test_live_crest_moves_but_respects_quiet_modes(self):
         def top(now, **options):
             return terminal.render('working',54,40,crest=True,now=now,
-                                   **options).splitlines()[:4]
+                                   **options).splitlines()[:2]
         self.assertNotEqual(top(1),top(2))
         for options in ({'calm':True},{'reduced_motion':True},{'stale':True},
                         {'lively':False}):
@@ -49,10 +49,11 @@ class ExpressionCanvas(unittest.TestCase):
             lines=frame.splitlines()
             self.assertEqual(len(lines),height)
             self.assertEqual(set(map(len,lines)),{width})
-            self.assertIn('A little orbit of light.',lines[3])
+            self.assertIn('A little orbit of light.',lines[2])
             self.assertIn('KEEPER',lines[-1])
-            start=next(i for i,line in enumerate(lines) if 'Keeper / authored' in line)
-            self.assertEqual(height-start-1,min(24,max(6,height*2//5)))
+            rows=min(24,max(6,height*2//5))
+            self.assertEqual(lines[-rows-1:-1],expression.lane(json.dumps(art,sort_keys=True,separators=(',',':')),width,rows,True,False,False,False).splitlines())
+            self.assertNotIn('Keeper / authored',frame)
         for size in [(31,36),(54,27)]:
             self.assertEqual(terminal.render('working',*size,crest=True),terminal.render('working',*size))
 
@@ -81,8 +82,9 @@ class ExpressionCanvas(unittest.TestCase):
             self.assertEqual(len(lines),height)
             self.assertEqual(set(map(len,lines)),{width})
             self.assertIn('KEEPER',lines[-1])
-            start=next(i for i,line in enumerate(lines) if 'Keeper / authored' in line)
-            self.assertEqual(height-start-1,min(24,max(6,height*2//5)))
+            rows=min(24,max(6,height*2//5))
+            self.assertEqual(lines[-rows-1:-1],expression.lane(json.dumps(art,sort_keys=True,separators=(',',':')),width,rows,True,False,False,False).splitlines())
+            self.assertNotIn('Keeper / authored',frame)
 
     def test_shapes_labels_and_theme_render_without_escapes_in_plain_mode(self):
         strokes=[{'kind':kind,'ink':'rose','points':points} for kind,points in [
