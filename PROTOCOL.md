@@ -43,3 +43,32 @@ records, start Link heartbeat workers or render peer overlays. Older consent
 and protocol artifacts remain preserved in historical source and development
 evidence. Prior consent files are not modified. Running older sessions keep
 their own loaded adapter until their normal lifecycle ends.
+
+## Explicit authored expression channel
+
+The `keeper` stdio MCP server supplies `say`, `paint`, and `clear`. These are
+creative display writes, not `activity-face/v1` events. No `signal` or `agent`
+mutation tool exists. Public activity records and their privacy filtering stay
+unchanged. Deliberately submitted captions and geometric strokes are the only
+new content retained; they never enter the activity feed.
+
+The MCP process inherits `KEEPER_LAUNCH_SOCKET` and `KEEPER_LAUNCH_OWNER`. It
+resolves the existing launch attachment, verifies its live owner and its own
+descent from the attached Codex process, and refuses unattached launches. No tool
+argument selects a path, session, agent or timestamp. Writes bind to the observed
+owner, session and generation and use the launch directory's private atomic file
+`.keeper-expression.json`, with a nonblocking writer lock. A changed attachment
+hides old expressions. Existing launch cleanup owns these `.keeper-*` files.
+
+`say` takes a printable ASCII caption (1–120 characters) and an optional
+5–120 second lifetime (default 30). `paint` takes at most 12 polylines of 2–24
+normalized finite points, in glass, lavender, gold or chalk. `clear` removes both.
+Writes are limited to one per second, except clearing. There is one current note
+and painting, no history. Tools reject arbitrary fields, terminal controls and
+nonfinite/out-of-bounds coordinates. Intentional content must not contain private
+transcript data; the server cannot semantically detect secrets in valid prose.
+
+The terminal labels this separate space `Keeper / authored`. It is static under
+all motion settings; expired captions disappear while the painting stays. Small
+panes hide it. Subagent seats remain exactly the existing event-owned satellites,
+including independent concurrent/out-of-order return handling.

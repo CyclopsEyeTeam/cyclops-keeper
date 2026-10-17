@@ -265,7 +265,21 @@ def _ascii_witness(event,kind):
     return ['+-------+']+['|'+row.ljust(7)[:7]+'|' for row in motif]+['+-------+']
 
 
-def render(snapshot, width, height, blink=False, stale=False, *, mode='balanced',
+def render(snapshot, width, height, blink=False, stale=False, *, expression=None, **options):
+    # An authored lane is separate from observed captions and status. No extra
+    # timer or animation: a cached raster is composed only when its data changes.
+    if expression and width>=32 and height>=18:
+        from expression import lane
+        rows=8 if height>=32 else 4
+        body=_render_body(snapshot,width,height-rows,blink,stale,**options).splitlines()
+        artwork=lane(json.dumps(expression,sort_keys=True,separators=(',',':')),
+                     width,rows,options.get('unicode',True),options.get('colour',False),
+                     options.get('truecolour',False),options.get('calm',False))
+        return '\n'.join(body[:-1]+artwork.splitlines()+body[-1:])
+    return _render_body(snapshot,width,height,blink,stale,**options)
+
+
+def _render_body(snapshot, width, height, blink=False, stale=False, *, mode='balanced',
            now=0, calm=False, reduced_motion=False, unicode=True,
            colour=False, truecolour=False, lively=True):
     """Draw one exact cell grid. Tool routes are key-stable and viewport-clamped."""
@@ -674,6 +688,8 @@ def main():
         last_frame=None
         painter=DirtyFrame()
         body_cache=PacedRenderCache()
+        from expression import Reader
+        expression_reader=Reader()
         while True:
             attached=True
             attachment_identity=None
@@ -690,7 +706,9 @@ def main():
             size=shutil.get_terminal_size((80,24))
             width=max(1,size.columns-1);height=max(1,size.lines)
             begin=time.process_time() if args.metrics else None
-            frame=body_cache.frame(current or 'unknown',width,height,
+            authored=(expression_reader.load(args.attachment,args.session,attachment_identity)
+                      if args.attachment and attached else None)
+            frame=body_cache.frame(current or 'unknown',width,height,expression=authored,
                          attachment_identity=attachment_identity,
                          blink=not reduced_motion and state in {'idle','stopped'} and time.time()%6.5<.14,
                          stale=stale,mode=mode,now=time.time(),calm=calm,

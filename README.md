@@ -43,6 +43,29 @@ The commands use Codex’s installed executable and follow its normal updates.
 Running `./install.sh` again refreshes Keeper. A checkout can be moved after
 installation because the commands use Codex’s installed plugin copy.
 
+## Authored captions and paintings
+
+Keeper includes a small local MCP server named `keeper`, with `say`, `paint`,
+and `clear` tools. After refreshing the plugin, start a new Keeper-enabled
+Codex session so the host discovers the tools. Normal tool approval settings
+still apply. An ordinary Codex session without a Keeper launch cannot publish.
+
+Ask Codex to occasionally leave an original caption or small painting alongside
+its work. The separate **Keeper / authored** space appears below the body when
+there is room (at least 32 columns and 18 rows). It never replaces the observed
+status. Captions last 5–120 seconds; paintings remain still until replaced,
+cleared or the launch ends. Below the minimum size, content is retained but hidden.
+
+Authored content is an explicit creative message, not inferred emotion, private
+reasoning or evidence of progress. Do not submit prompts, transcript excerpts,
+paths, credentials or tool payloads. This opt-in tool content is stored separately
+from the privacy-filtered activity feed, only in the private launch directory.
+
+Subagent satellites remain driven exclusively by observed starts and matching
+returns. The MCP tools cannot create agents, claim success or change work state.
+The server sleeps on stdin; it does not run a background model. Painting rasters
+are cached, and the view checks for changed artwork at most four times a second.
+
 ## Requirements
 
 - Linux and Bash, with Codex plugin support.

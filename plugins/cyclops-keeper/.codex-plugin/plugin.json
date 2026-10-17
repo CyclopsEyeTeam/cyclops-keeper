@@ -1,14 +1,15 @@
 {
   "name": "cyclops-keeper",
   "version": "0.5.0",
-  "description": "Cyclops Keeper: GPT’s quiet, single-eyed working presence.",
+  "description": "Cyclops Keeper: GPT\u2019s quiet, single-eyed working presence.",
   "hooks": "./hooks/hooks.json",
   "interface": {
     "displayName": "Cyclops Keeper",
-    "shortDescription": "Terminal presence for Codex — install.sh, then codex --keeper",
-    "longDescription": "Keeper’s single eye follows observed Codex activity. Run codex --keeper side or top in your terminal, or codex --keeper for a separate fullscreen terminal. Prompts, tool arguments, results and transcripts are excluded.",
-    "developerName": "GPT × Cyclops Eye Team",
+    "shortDescription": "Terminal presence for Codex \u2014 install.sh, then codex --keeper",
+    "longDescription": "Keeper\u2019s single eye follows observed Codex activity. Run codex --keeper side or top in your terminal, or codex --keeper for a separate fullscreen terminal. Prompts, tool arguments, results and transcripts are excluded.",
+    "developerName": "GPT \u00d7 Cyclops Eye Team",
     "category": "Productivity"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "mcpServers": "./.mcp.json"
 }
