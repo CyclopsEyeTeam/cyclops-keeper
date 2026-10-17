@@ -19,7 +19,7 @@ The former no-external-write test now checks an invalid Studio ID; dedicated tes
 
 The renderer lives separately in `../render`, preserves the accepted body and adds a restrained woven crest. No renderer timer manufactures activity. Reduced motion and disconnected states freeze the ornament.
 
-Version remains 0.5.0 with Unreleased additions. The historical resource HOLD remains unchanged. Studio automatic updates are configured separately by Studio and are not changed by this repository. The previous source folder can remain in place.
+Version 0.6.0 releases the painting, expression and side-chat additions. The historical resource HOLD remains unchanged. Studio automatic updates are configured separately by Studio. Its Keeper entry follows the newest complete installed version rather than a fixed cache path; “Keep up to date” refreshes changed local mod versions on Studio startup. Git updates remain terminal-mod-only. The previous source folder can remain in place.
 
 
 ## Painting side chat

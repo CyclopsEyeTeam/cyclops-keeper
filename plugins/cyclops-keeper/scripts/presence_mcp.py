@@ -2,6 +2,7 @@
 """Small stdio MCP server. Blocks on stdin; no worker, watcher or model loop."""
 import json
 import sys
+from pathlib import Path
 sys.dont_write_bytecode=True
 from expression import publish, PALETTE
 import painting_mcp
@@ -51,7 +52,7 @@ def respond(request):
     if method=='initialize':
         version=params.get('protocolVersion')
         result={'protocolVersion':version if version in {'2024-11-05','2025-03-26','2025-06-18'} else '2025-06-18',
-                'capabilities':{'tools':{}},'serverInfo':{'name':'keeper','version':'0.5.0'},'instructions':DESCRIPTION}
+                'capabilities':{'tools':{}},'serverInfo':{'name':'keeper','version':json.loads((Path(__file__).resolve().parents[1]/'.codex-plugin/plugin.json').read_text())['version']},'instructions':DESCRIPTION}
     elif method=='ping':result={}
     elif method=='tools/list':result={'tools':TOOLS}
     elif method=='tools/call':
