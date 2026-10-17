@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.6.1 — Reactive lower canvas · 17 October 2026
+
+- Restore the event-reactive lower drawing while work is active, with the saved painting above. Return to the authored sketch or saved outline when work settles; preserve quiet-mode and stale-signal restraint.
+
 ## 0.6.0 — Painting, expression and side chat · 17 October 2026
 
 - Preserve previous version caches after plugin refresh, including failed installs, so existing sessions retain their hook files. Keep rollback copies outside the replaced cache.

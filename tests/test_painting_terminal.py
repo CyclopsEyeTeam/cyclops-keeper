@@ -9,6 +9,23 @@ from test_painting_store import sample
 import terminal
 
 class OverheadPainting(unittest.TestCase):
+    def test_active_work_uses_reactive_lower_canvas_then_returns_to_sketch(self):
+        from unittest.mock import patch
+        snapshot={'state':'tool','event':'PreToolUse','sequence':1,'updated_at':10,
+                  'transitions':[{'sequence':1,'event':'PreToolUse','kind':'inspect','at':10}]}
+        options=dict(painting_lines=['TOP'.ljust(60)]*8,sketch_lines=['SAVED OUTLINE'.ljust(60)]*14,now=10.3)
+        active=terminal.render(snapshot,60,48,**options)
+        self.assertNotIn('SAVED OUTLINE',active)
+        self.assertEqual(len(active.splitlines()),48)
+        self.assertTrue(all(len(line)==60 for line in active.splitlines()))
+        quiet=terminal.render(snapshot,60,48,reduced_motion=True,**options)
+        quiet_later=terminal.render(snapshot,60,48,reduced_motion=True,**dict(options,now=10.5))
+        self.assertEqual(quiet.splitlines()[-14:-1],quiet_later.splitlines()[-14:-1])
+        snapshot.update(state='stopped',event='Stop')
+        self.assertIn('SAVED OUTLINE',terminal.render(snapshot,60,48,**options))
+        snapshot.update(state='tool',event='PreToolUse',stale=True)
+        self.assertIn('SAVED OUTLINE',terminal.render(snapshot,60,48,**options))
+
     def test_overhead_keeps_expression_and_status_below(self):
         lines=['OVERHEAD'.ljust(60)]*8
         expression={'strokes':[{'ink':'gold','points':[[.1,.1],[.9,.9]],'kind':'line'}]}

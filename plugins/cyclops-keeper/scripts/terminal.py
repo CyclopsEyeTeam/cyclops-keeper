@@ -290,7 +290,23 @@ def render(snapshot, width, height, blink=False, stale=False, *, expression=None
         options['compact_caption']=True
     body=_render_body(snapshot,width,height-rows-len(top),blink,stale,**options).splitlines()
     artwork=[]
-    if rows and sketch_lines and not (expression and any(expression.get(k) for k in ('strokes','labels'))):
+    current=_record(snapshot,stale)
+    event=next((item for item in reversed(current['transitions'])
+                if item['sequence']==current['sequence']),None)
+    reactive=(rows and overhead and event and current.get('event_observed')
+              and not current['stale'] and current['state'] in {'working','tool','branching','compacting'})
+    if reactive:
+        from terminal_art import Surface, _paint_witness
+        surface=Surface(width,rows)
+        age=options.get('now',0)-event['at']
+        animate=(not options.get('calm',False) and not options.get('reduced_motion',False)
+                 and options.get('lively',True) and 0<=age<.72)
+        reveal=max(.05,min(1,age/.72)) if animate else 1
+        _paint_witness(surface,event,4,2,width*2-5,rows*4-3,4,reveal)
+        artwork=surface.frame('',unicode=options.get('unicode',True),colour=colour,
+                              truecolour=options.get('truecolour',False),calm=options.get('calm',False),
+                              theme=options.get('theme','classic')).splitlines()[:rows]
+    elif rows and sketch_lines and not (expression and any(expression.get(k) for k in ('strokes','labels'))):
         artwork=sketch_lines[:rows]+[' '*width]*max(0,rows-len(sketch_lines))
         if expression and expression.get('caption'):
             artwork[0]=_caption_line(expression['caption'],width,options.get('unicode',True))
