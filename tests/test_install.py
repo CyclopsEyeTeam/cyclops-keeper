@@ -28,7 +28,8 @@ if args[:2] == ['plugin','add']:
     source = Path(os.environ['FIXTURE_SOURCE'])/'plugins/cyclops-keeper'
     version = json.loads((source/'.codex-plugin/plugin.json').read_text())['version']
     target = home/'plugins/cache/cyclops-keeper/cyclops-keeper'/version
-    if target.exists(): shutil.rmtree(target)
+    if target.parent.exists(): shutil.rmtree(target.parent)
+    if os.environ.get("FIXTURE_INSTALL_FAIL"): sys.exit(7)
     shutil.copytree(source,target)
     (home/'installed').touch()
 elif args[:3] == ['plugin','marketplace','add']:
@@ -67,6 +68,19 @@ elif args[:1] != ['plugin']:
     def run_script(self, name, *args, env_override=None):
         return subprocess.run(['bash', str(ROOT/name), *args], env=dict(self.env, **(env_override or {})),
                               text=True, capture_output=True, timeout=15)
+
+    def test_upgrade_preserves_old_session_files_even_on_failure(self):
+        import hashlib
+        for fail in ('', '1'):
+            with self.subTest(failed=bool(fail)):
+                old=self.home/'.codex/plugins/cache/cyclops-keeper/cyclops-keeper/0.4.0'
+                (old/'scripts').mkdir(parents=True,exist_ok=True)
+                hook=old/'scripts/hook.py';hook.write_text('print("original hook")\n')
+                digest=hashlib.sha256(hook.read_bytes()).hexdigest()
+                result=self.run_script('install.sh',env_override={'FIXTURE_INSTALL_FAIL':fail})
+                self.assertEqual(result.returncode == 0, not bool(fail),result.stderr)
+                self.assertTrue(hook.is_file(),'refresh removed the active session hook')
+                self.assertEqual(hashlib.sha256(hook.read_bytes()).hexdigest(),digest)
 
     def test_plain_install_enables_codex_and_refresh_is_idempotent(self):
         first = self.run_script('install.sh')

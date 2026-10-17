@@ -4,6 +4,8 @@
 
 ## 0.6.0 — Painting, expression and side chat · 17 October 2026
 
+- Preserve previous version caches after plugin refresh, including failed installs, so existing sessions retain their hook files. Keep rollback copies outside the replaced cache.
+
 - Add a separate painting Chat panel with follow-up history, background replies, cancellation and actual token usage. Support Studio’s dedicated Keeper question mailbox without reading the work conversation or writing chat into painting files. Studio UI support is maintained separately.
 
 - Publish an optional privacy-filtered live/durable activity feed for Studio-owned sessions. Keep terminal activity authoritative, exact tool correlations, bounded history and producer-bound heartbeats; ordinary sessions publish no feed. This does not clear the historical resource HOLD.

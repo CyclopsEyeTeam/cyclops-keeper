@@ -27,3 +27,5 @@ Version 0.6.0 releases the painting, expression and side-chat additions. The his
 Studio sends Keeper questions in `studio.json` under `keeperAsk`, with an explicit current `run`, question `id`, `text`, `t`, and optional selected `painting`. Keeper ignores Spark's `ask` field. Clearing that Keeper request cancels it. The terminal and Studio share a private per-Codex-session painting conversation. Keeper writes only bounded side answers/status/usage to its own `side.json`, tagged with the feed run; these are deliberately separate from the content-free activity feed. Studio validates current producer ownership before accepting asks or clears.
 
 The accompanying Studio UI/backend patch is not included in this repository, and `install.sh` does not modify Studio.
+
+The installer preserves older numeric cache versions for open sessions after a refresh, including a failed refresh. Rollback copies are retained under Codex plugin data (`cyclops-keeper-install`); they are installation state, not painting data. Existing sessions still need relaunching to load new code.

@@ -24,7 +24,7 @@ codex plugin marketplace add "$here" >/dev/null 2>&1 \
   || fail "Codex could not add this folder as a marketplace. Run 'codex plugin marketplace add \"$here\"' to see why."
 say "  marketplace: ready"
 # Adding again refreshes Codex's installed copy from this folder.
-codex plugin add "$plugin" >/dev/null 2>&1 \
+python3 -B "$here/install_cache.py" >/dev/null 2>&1 \
   || fail "Codex could not install the plugin. Run 'codex plugin add $plugin' to see why."
 say "  plugin: installed"
 
