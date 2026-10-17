@@ -46,10 +46,10 @@ their own loaded adapter until their normal lifecycle ends.
 
 ## Explicit authored expression channel
 
-The `keeper` stdio MCP server supplies `say`, `paint`, and `clear`. These are
+The `keeper` stdio MCP server supplies `say`, `paint`, `crest`, and `clear`. These are
 creative display writes, not `activity-face/v1` events. No `signal` or `agent`
 mutation tool exists. Public activity records and their privacy filtering stay
-unchanged. Deliberately submitted captions and geometric strokes are the only
+unchanged. Deliberately submitted captions, labels and geometric strokes are the only
 new content retained; they never enter the activity feed.
 
 The MCP process inherits `KEEPER_LAUNCH_SOCKET` and `KEEPER_LAUNCH_OWNER`. It
@@ -61,8 +61,17 @@ owner, session and generation and use the launch directory's private atomic file
 hides old expressions. Existing launch cleanup owns these `.keeper-*` files.
 
 `say` takes a printable ASCII caption (1–120 characters) and an optional
-5–120 second lifetime (default 30). `paint` takes at most 12 polylines of 2–24
-normalized finite points, in glass, lavender, gold or chalk. `clear` removes both.
+5–120 second lifetime (default 30). `paint` takes at most 32 strokes of 2–48
+normalized finite points (512 total), with optional line, ellipse, rect or curve
+kind. Ellipse/rect require two bounding corners; cubic curves require four
+control points. Up to six printable ASCII labels of 1–40 characters have a
+normalized anchor. Eight inks follow the active theme: glass, lavender, gold,
+chalk, mist, aqua, violet and rose. Replacing a painting replaces its labels;
+the caption is preserved. `clear` removes caption, strokes and labels.
+`crest` selects a static constellation, moon or ribbon with an optional printable
+ASCII phrase of up to 48 characters. Its authored content has the same launch
+binding and remains until replaced or cleared. It cannot change activity state.
+Clear removes this custom crest too; the default decorative constellation remains.
 Writes are limited to one per second, except clearing. There is one current note
 and painting, no history. Tools reject arbitrary fields, terminal controls and
 nonfinite/out-of-bounds coordinates. Intentional content must not contain private

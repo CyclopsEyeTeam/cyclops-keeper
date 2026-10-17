@@ -56,6 +56,17 @@ there is room (at least 32 columns and 18 rows). It never replaces the observed
 status. Captions last 5–120 seconds; paintings remain still until replaced,
 cleared or the launch ends. Below the minimum size, content is retained but hidden.
 
+The drawing box uses about 40% of the pane height (up to 24 rows), with nearly
+the full width available. `paint` supports polylines, ellipses, rectangles and
+cubic curves, plus six short labels. Use up to 32 strokes and 512 total points;
+eight inks follow the active theme. See [drawing controls](docs/KEEPER-MCP-EXPRESSION.md).
+
+Panes at least 32 columns wide and 28 rows tall also show a quiet constellation
+crest above Keeper. The `crest` tool can replace it with a moon or ribbon and
+an original phrase of up to 48 characters. This static decoration is separate
+from observed activity and leaves the bottom drawing in place. `clear` removes
+custom authored content and returns the top to its decorative constellation.
+
 Authored content is an explicit creative message, not inferred emotion, private
 reasoning or evidence of progress. Do not submit prompts, transcript excerpts,
 paths, credentials or tool payloads. This opt-in tool content is stored separately

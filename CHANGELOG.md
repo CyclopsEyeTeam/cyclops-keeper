@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add a static constellation crest above Keeper in taller panes, with a launch-bound `crest` tool for a moon, ribbon or constellation and a short authored phrase; preserve the bottom canvas and observed status.
+
+- Expand the authored drawing box to about 40% of pane height and nearly full width; add ellipses, rectangles, cubic curves, short labels and eight themed inks, with bounded geometry and cached static rendering.
+
 - Default new terminal launches to Moonlight, with optional Ember, Moss, Terminal Green and Classic palettes through `KEEPER_THEME` or the direct renderer's `--theme` option.
 - Add sparse working particles, observed-tool sparks, a waiting pulse and a short observed-Stop ripple; quiet controls and unavailable signals suppress the new effects.
 - Preserve Classic library defaults and historical raster fixtures. Focused checks pass; these additions do not resolve the existing resource HOLD or establish physical visual acceptance.

@@ -11,7 +11,8 @@ import textwrap
 from launcher_link import atomic, read_attachment, descendant
 
 FILENAME='.keeper-expression.json'
-PALETTE={'glass':1,'lavender':2,'gold':4,'chalk':5}
+PALETTE={'glass':1,'lavender':2,'gold':4,'chalk':5,
+         'mist':0,'aqua':6,'violet':8,'rose':9}
 
 
 def caption(value):
@@ -21,21 +22,91 @@ def caption(value):
     return value
 
 
+def coordinate(point):
+    if (not isinstance(point,list) or len(point)!=2 or
+            any(type(v) not in (int,float) or not math.isfinite(v) or not 0<=v<=1 for v in point)):
+        raise ValueError('points must be finite [x,y] coordinates from 0 to 1')
+    return point
+
+
+def ink(value):
+    if not isinstance(value,str) or value not in PALETTE:
+        raise ValueError('unknown drawing ink')
+    return value
+
+
 def painting(value):
-    if not isinstance(value,list) or not 1<=len(value)<=12:
-        raise ValueError('provide 1-12 strokes')
-    result=[]
+    if not isinstance(value,list) or not 1<=len(value)<=32:
+        raise ValueError('provide 1-32 strokes')
+    result=[];total=0
     for stroke in value:
-        if not isinstance(stroke,dict) or set(stroke)!={'ink','points'} or stroke['ink'] not in PALETTE:
-            raise ValueError('each stroke needs ink and points')
+        if not isinstance(stroke,dict) or set(stroke)-{'ink','points','kind'} or not {'ink','points'}<=set(stroke):
+            raise ValueError('each stroke needs ink and points, with optional kind')
+        colour=ink(stroke['ink']);kind=stroke.get('kind','line')
+        if kind not in ('line','ellipse','rect','curve'):
+            raise ValueError('kind must be line, ellipse, rect or curve')
         points=stroke['points']
-        if not isinstance(points,list) or not 2<=len(points)<=24:
-            raise ValueError('each stroke needs 2-24 points')
-        for p in points:
-            if not isinstance(p,list) or len(p)!=2 or any(type(v) not in (int,float) or not math.isfinite(v) or not 0<=v<=1 for v in p):
-                raise ValueError('points must be finite [x,y] coordinates from 0 to 1')
-        result.append({'ink':stroke['ink'],'points':points})
+        if not isinstance(points,list) or not 2<=len(points)<=48:
+            raise ValueError('each stroke needs 2-48 points')
+        if (kind in ('ellipse','rect') and len(points)!=2) or (kind=='curve' and len(points)!=4):
+            raise ValueError('ellipse and rect need 2 opposite corners; curve needs 4 control points')
+        total+=len(points)
+        if total>512:raise ValueError('a painting allows at most 512 points in total')
+        for point in points:coordinate(point)
+        item={'ink':colour,'points':points}
+        if kind!='line':item['kind']=kind
+        result.append(item)
     return result
+
+
+def labels(value):
+    if not isinstance(value,list) or len(value)>6:
+        raise ValueError('provide at most 6 labels')
+    result=[]
+    for label in value:
+        if not isinstance(label,dict) or set(label)!={'text','at','ink'}:
+            raise ValueError('each label needs text, at and ink')
+        text=caption(label['text'])
+        if len(text)>40:raise ValueError('labels allow at most 40 printable ASCII characters')
+        result.append({'text':text,'at':coordinate(label['at']),'ink':ink(label['ink'])})
+    return result
+
+
+def crest_value(value):
+    if not isinstance(value,dict) or set(value)-{'motif','phrase'}:
+        raise ValueError('crest accepts motif and optional phrase')
+    motif=value.get('motif','constellation')
+    if motif not in ('constellation','moon','ribbon'):
+        raise ValueError('crest motif must be constellation, moon or ribbon')
+    phrase=value.get('phrase','')
+    if phrase:
+        caption(phrase)
+    elif not isinstance(phrase,str):
+        raise ValueError('crest phrase must be text')
+    if len(phrase)>48:raise ValueError('crest phrase allows at most 48 printable ASCII characters')
+    return {'motif':motif,'phrase':phrase}
+
+
+@lru_cache(maxsize=4)
+def crest_lane(encoded,width,colour,truecolour,calm,theme='classic'):
+    """Four static rows of explicitly decorative or authored expression."""
+    from terminal_art import colour_codes
+    value=json.loads(encoded) if encoded else {'motif':'constellation','phrase':''}
+    motifs={
+        'constellation':(' .       *----.        . ', '    *---/      `---*      '),
+        'moon':('       .-``-.    *       ', "   .   `-..-'        .   "),
+        'ribbon':('   .---.      .---.      ', "  /     `----'     `--.   "),
+    }
+    title='Keeper / crest - authored' if encoded else 'Keeper / decorative crest'
+    lines=[title[:width].center(width)]
+    lines.extend(line[:width].center(width) for line in motifs[value['motif']])
+    phrase=value.get('phrase','')
+    if len(phrase)>width:phrase=phrase[:width-3]+'...'
+    lines.append(phrase.center(width))
+    if colour:
+        codes=colour_codes(truecolour,False,calm,theme)
+        lines=[codes[2 if index in (1,2) else 10]+line+'\x1b[0m' for index,line in enumerate(lines)]
+    return '\n'.join(lines)
 
 
 def binding():
@@ -78,8 +149,12 @@ def publish(action,args):
         text=caption(args.get('caption'));seconds=args.get('seconds',30)
         if type(seconds) is not int or not 5<=seconds<=120:raise ValueError('seconds must be 5-120')
     elif action=='paint':
-        if set(args)!={'strokes'}:raise ValueError('paint accepts only strokes')
-        strokes=painting(args['strokes'])
+        if set(args)-{'strokes','labels'}:raise ValueError('paint accepts strokes and labels')
+        strokes=painting(args['strokes']) if args.get('strokes')!=[] and 'strokes' in args else []
+        lettering=labels(args.get('labels',[]))
+        if not strokes and not lettering:raise ValueError('provide strokes or labels; use clear for an empty canvas')
+    elif action=='crest':
+        crest=crest_value(args)
     elif action!='clear' or args:raise ValueError('Unknown tool or arguments')
     path,state=binding()
     lock=os.open(path.parent/'.keeper-expression.lock',os.O_CREAT|os.O_RDWR|os.O_NOFOLLOW|os.O_NONBLOCK,0o600)
@@ -96,14 +171,15 @@ def publish(action,args):
             raise ValueError('Let the previous expression settle; wait one second')
         value={'v':1,'binding':expected,'written_at':now,
                'caption':old.get('caption'),'until':old.get('until',0),
-               'strokes':old.get('strokes',[])}
+               'strokes':old.get('strokes',[]),'labels':old.get('labels',[]),'crest':old.get('crest')}
         if action=='say':value.update(caption=text,until=now+seconds)
-        elif action=='paint':value['strokes']=strokes
-        else:value.update(caption=None,until=0,strokes=[])
+        elif action=='paint':value.update(strokes=strokes,labels=lettering)
+        elif action=='crest':value['crest']=crest
+        else:value.update(caption=None,until=0,strokes=[],labels=[],crest=None)
         # Refuse if a clear/resume changed attachment while preparing the write.
         if identity(read_attachment(path))!=expected:raise ValueError('Keeper attachment changed; retry')
         atomic(path.parent/FILENAME,value)
-        return 'Authored '+({'say':'caption','paint':'painting','clear':'space cleared'}[action])+'. No work status was changed.'
+        return 'Authored '+({'say':'caption','paint':'painting','crest':'crest','clear':'space cleared'}[action])+'. No work status was changed.'
     finally:os.close(lock)
 
 
@@ -129,6 +205,8 @@ class Reader:
                         raise ValueError('Expression belongs to a different attachment')
                     if value.get('caption') is not None:caption(value['caption'])
                     if value.get('strokes'):painting(value['strokes'])
+                    if value.get('labels'):labels(value['labels'])
+                    if value.get('crest') is not None:crest_value(value['crest'])
                     until=value.get('until',0)
                     if type(until) not in (float,int) or not math.isfinite(until):raise ValueError('Invalid expiry')
                     self.value=value;self.signature=signature
@@ -136,29 +214,50 @@ class Reader:
         value=self.value
         text=value.get('caption') if time.time()<value.get('until',0) else None
         strokes=value.get('strokes',[])
-        return {'caption':text,'strokes':strokes} if text or strokes else None
+        lettering=value.get('labels',[])
+        crest=value.get('crest')
+        return {'caption':text,'strokes':strokes,'labels':lettering,'crest':crest} if text or strokes or lettering or crest else None
 
 
 @lru_cache(maxsize=4)
-def lane(encoded,width,rows,unicode,colour,truecolour,calm):
+def lane(encoded,width,rows,unicode,colour,truecolour,calm,theme='classic'):
     """Static, bounded canvas. No animation or activity indicators here."""
     value=json.loads(encoded)
     label='Keeper / authored'
-    text=value.get('caption') or 'A small painting, left here.'
+    text=value.get('caption')
     lines=[label[:width].ljust(width)]
-    wrapped=textwrap.wrap(text,width=max(1,width-2)) or ['']
-    text_rows=min(2,rows-1)
-    lines.extend(('  '+line)[:width].ljust(width) for line in wrapped[:text_rows])
-    lines.extend(' '*width for _ in range(1+text_rows-len(lines)))
+    if text:
+        wrapped=textwrap.wrap(text,width=max(1,width-2)) or ['']
+        lines.extend(('  '+line)[:width].ljust(width) for line in wrapped[:min(2,rows-1)])
     art_rows=rows-len(lines)
-    if art_rows and value.get('strokes'):
+    if art_rows and (value.get('strokes') or value.get('labels')):
         from terminal_art import Surface
         surface=Surface(width,art_rows)
-        # Leave side margins and a narrow, intentionally asymmetrical canvas.
-        left=width*.16;span=width*.65
-        for stroke in value['strokes']:
-            points=[((left+x*span)*2,y*max(0,art_rows*4-1)) for x,y in stroke['points']]
-            for a,b in zip(points,points[1:]):surface.line(a,b,PALETTE[stroke['ink']],1)
-        lines.extend(surface.frame('',unicode=unicode,colour=colour,truecolour=truecolour,calm=calm).splitlines()[:art_rows])
+        # Two terminal cells of margin; the rest belongs to the drawing.
+        left=2;span=max(0,width-5)
+        def project(point):
+            x,y=point
+            return ((left+x*span)*2,y*max(0,art_rows*4-1))
+        for stroke in value.get('strokes',[]):
+            points=[project(point) for point in stroke['points']]
+            role=PALETTE[stroke['ink']];kind=stroke.get('kind','line')
+            if kind=='curve':surface.curve(points,role,1)
+            elif kind in ('ellipse','rect'):
+                (x0,y0),(x1,y1)=points
+                if kind=='ellipse':
+                    surface.ellipse(((x0+x1)/2,(y0+y1)/2),abs(x1-x0)/2,abs(y1-y0)/2,role,1)
+                else:
+                    corners=[(x0,y0),(x1,y0),(x1,y1),(x0,y1),(x0,y0)]
+                    for a,b in zip(corners,corners[1:]):surface.line(a,b,role,1)
+            else:
+                for a,b in zip(points,points[1:]):surface.line(a,b,role,1)
+        for label in value.get('labels',[]):
+            x,y=project(label['at']);row=min(art_rows-1,round(y)//4)
+            col=min(width-1,round(x)//2)
+            for offset,char in enumerate(label['text'][:max(0,width-2-col)]):
+                surface.point((col+offset)*2,row*4,PALETTE[label['ink']],9)
+                surface.glyphs[(row,col+offset)]=char
+        lines.extend(surface.frame('',unicode=unicode,colour=colour,truecolour=truecolour,
+                                   calm=calm,theme=theme).splitlines()[:art_rows])
     lines.extend(' '*width for _ in range(rows-len(lines)))
     return '\n'.join(lines)

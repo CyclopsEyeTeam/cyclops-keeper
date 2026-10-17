@@ -3,7 +3,7 @@
 import json
 import sys
 sys.dont_write_bytecode=True
-from expression import publish
+from expression import publish, PALETTE
 
 DESCRIPTION=('Author a small expression for this launch\'s Keeper. This is creative display, '
  'not telemetry or hidden thought. Never copy prompts, private reasoning, tool arguments/results, '
@@ -19,11 +19,19 @@ TOOLS=[
  {'name':'say','description':DESCRIPTION+' The caption is visibly labeled authored and expires.',
   'inputSchema':schema({'caption':{'type':'string','minLength':1,'maxLength':120,'description':'Original printable ASCII caption, not copied task data.'},
                          'seconds':{'type':'integer','minimum':5,'maximum':120,'default':30}},['caption'])},
- {'name':'paint','description':DESCRIPTION+' Replace the quiet painting with 1-12 polylines. It remains still until replaced or cleared. Use Keeper aperture, off-centre crown and loose threads as inspiration.',
-  'inputSchema':schema({'strokes':{'type':'array','minItems':1,'maxItems':12,'items':schema({
-      'ink':{'type':'string','enum':['glass','lavender','gold','chalk']},
-      'points':{'type':'array','minItems':2,'maxItems':24,'items':{'type':'array','minItems':2,'maxItems':2,'items':{'type':'number','minimum':0,'maximum':1}}}},['ink','points'])}},['strokes'])},
- {'name':'clear','description':'Clear only this launch\'s authored caption and painting. Leaves observed activity and subagent seats intact.',
+ {'name':'paint','description':DESCRIPTION+' Replace the canvas with up to 32 strokes (512 points total) and 6 short labels. Coordinates are normalized 0..1. Line joins points; ellipse/rect take two opposite corners; curve takes start, two control points and end. Eight inks follow the current theme. Content remains still until replaced or cleared; omitted strokes or labels are cleared. Shapes may be layered in drawing order; labels appear on top.',
+  'inputSchema':schema({'strokes':{'type':'array','minItems':0,'maxItems':32,'items':schema({
+      'ink':{'type':'string','enum':list(PALETTE)},
+      'kind':{'type':'string','enum':['line','ellipse','rect','curve'],'default':'line'},
+      'points':{'type':'array','minItems':2,'maxItems':48,'items':{'type':'array','minItems':2,'maxItems':2,'items':{'type':'number','minimum':0,'maximum':1}}}},['ink','points'])},
+      'labels':{'type':'array','maxItems':6,'items':schema({
+          'text':{'type':'string','minLength':1,'maxLength':40,'description':'Original printable ASCII label.'},
+          'at':{'type':'array','minItems':2,'maxItems':2,'items':{'type':'number','minimum':0,'maximum':1}},
+          'ink':{'type':'string','enum':list(PALETTE)}},['text','at','ink'])}},[])},
+ {'name':'crest','description':DESCRIPTION+' Set the static crest above Keeper without replacing the painting. Pick a constellation, moon or ribbon and an optional original phrase. It persists until replaced or cleared and hides in short panes.',
+  'inputSchema':schema({'motif':{'type':'string','enum':['constellation','moon','ribbon'],'default':'constellation'},
+      'phrase':{'type':'string','maxLength':48,'description':'Original printable ASCII phrase; empty removes the previous phrase.'}},[])},
+ {'name':'clear','description':'Clear only this launch\'s authored caption, painting and custom crest. Leaves observed activity and subagent seats intact.',
   'inputSchema':schema({},[])}]
 for tool in TOOLS:
     tool['annotations']={'readOnlyHint':False,'destructiveHint':False,'openWorldHint':False}
@@ -42,7 +50,7 @@ def respond(request):
     elif method=='tools/list':result={'tools':TOOLS}
     elif method=='tools/call':
         try:
-            if params.get('name') not in {'say','paint','clear'}:raise ValueError('Unknown Keeper tool')
+            if params.get('name') not in {'say','paint','crest','clear'}:raise ValueError('Unknown Keeper tool')
             text=publish(params['name'],params.get('arguments',{}))
             result={'content':[{'type':'text','text':text}]}
         except (ValueError,OSError,TypeError,KeyError) as error:

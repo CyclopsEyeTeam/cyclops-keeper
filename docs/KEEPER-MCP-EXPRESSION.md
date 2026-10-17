@@ -10,6 +10,7 @@ The bundled MCP server `keeper` offers:
 - `say({"caption":"A small fold of light, beside the work.","seconds":30})`
 - `paint({"strokes":[{"ink":"glass","points":[[0.1,0.8],[0.3,0.3],[0.8,0.1],[0.6,0.8]]},{"ink":"gold","points":[[0.4,0.4],[0.5,0.4],[0.5,0.7],[0.4,0.7],[0.4,0.4]]}]})`
 - `clear({})`
+- `crest({"motif":"constellation","phrase":"A little orbit of light."})`
 
 These are tool arguments, not shell commands. The host may prefix tool names.
 Restart the Keeper-enabled Codex session after installation so it discovers the
@@ -23,10 +24,43 @@ is added. Private thoughts are not extracted or displayed.
 ## Display and ownership
 
 The lane is visibly labeled `Keeper / authored`, below the original body and
-observed event captions, above the session status. It takes eight rows in tall
-panes and four in shorter panes; below 32 columns or 18 rows it is hidden. The
+observed event captions, above the session status. It takes about 40% of pane
+height, capped at 24 rows, with two-cell side margins; below 32 columns or 18 rows it is hidden. The
 latest painting remains after the caption expires. Both are static, including
 under Calm and Reduced Motion. Clear removes only authored content.
+
+## Expanded drawing controls
+
+`paint` replaces the drawing and labels together, preserving a live caption.
+Supply strokes, labels, or both. An omitted collection is cleared. Use `clear`
+to remove everything. Existing polyline calls remain compatible.
+
+- Up to 32 strokes, each with 2–48 points, and at most 512 points in total.
+- Optional stroke `kind`: `line` (default), `ellipse`, `rect`, or `curve`.
+- Ellipses and rectangles take exactly two opposite bounding corners. Curves
+  take four points: start, two control points, end. Coordinates run from 0 to 1.
+- Up to six labels: `{"text":"moon","at":[0.4,0.2],"ink":"chalk"}`.
+  Text is 1–40 printable ASCII characters and clips at the right margin.
+- Inks: `glass`, `lavender`, `gold`, `chalk`, `mist`, `aqua`, `violet`, `rose`.
+  Colours follow the selected theme; no-colour and ASCII fallback still work.
+- Strokes draw in order; labels sit on top. Nothing animates automatically.
+
+Example:
+
+```json
+{"strokes":[{"kind":"ellipse","ink":"gold","points":[[0.1,0.1],[0.35,0.65]]},{"kind":"curve","ink":"aqua","points":[[0.05,0.9],[0.3,0.5],[0.7,1],[0.95,0.6]]}],"labels":[{"text":"a little moon garden","at":[0.4,0.2],"ink":"chalk"}]}
+```
+
+Restart the Keeper-enabled Codex session after refreshing the plugin to load
+the expanded MCP schema. The cached canvas also includes the selected theme.
+
+The static crest occupies four rows above Keeper in panes of at least 32 columns
+and 28 rows. It defaults to a decorative constellation; `crest` replaces it with
+an authored `constellation`, `moon` or `ribbon`, plus an optional 0–48 character
+printable ASCII `phrase`. It persists until replaced or cleared. This tool does
+not change the bottom canvas or its caption. Smaller panes hide the crest.
+`clear` removes the custom crest along with the canvas, leaving the default
+decorative constellation. No phrase is generated automatically.
 
 The existing event-keyed subagent satellites are the seats. No new synthetic
 seat records were added. Parallel starts, late returns and out-of-order returns

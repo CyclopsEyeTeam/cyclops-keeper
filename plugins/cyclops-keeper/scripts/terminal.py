@@ -265,19 +265,27 @@ def _ascii_witness(event,kind):
     return ['+-------+']+['|'+row.ljust(7)[:7]+'|' for row in motif]+['+-------+']
 
 
-def render(snapshot, width, height, blink=False, stale=False, *, expression=None, colour=False, **options):
+def render(snapshot, width, height, blink=False, stale=False, *, expression=None, colour=False, crest=False, **options):
     options['colour']=colour
-    # An authored lane is separate from observed captions and status. No extra
-    # timer or animation: a cached raster is composed only when its data changes.
-    if expression and width>=32 and height>=18:
-        from expression import lane
-        rows=8 if height>=32 else 4
-        body=_render_body(snapshot,width,height-rows,blink,stale,**options).splitlines()
+    from expression import lane, crest_lane
+    # The crest and canvas are static authored/decorative surfaces. Status is
+    # always the final row; library defaults preserve historical fixtures.
+    top=[]
+    if crest and width>=32 and height>=28:
+        custom=expression.get('crest') if expression else None
+        top=crest_lane(json.dumps(custom,sort_keys=True) if custom else '',width,
+                       colour,options.get('truecolour',False),options.get('calm',False),
+                       options.get('theme','classic')).splitlines()
+    bottom=bool(expression and any(expression.get(key) for key in ('caption','strokes','labels')))
+    rows=min(24,max(6,height*2//5)) if bottom and width>=32 and height>=18 else 0
+    body=_render_body(snapshot,width,height-rows-len(top),blink,stale,**options).splitlines()
+    artwork=[]
+    if rows:
         artwork=lane(json.dumps(expression,sort_keys=True,separators=(',',':')),
-                     width,rows,options.get('unicode',True),options.get('colour',False),
-                     options.get('truecolour',False),options.get('calm',False))
-        return '\n'.join(body[:-1]+artwork.splitlines()+body[-1:])
-    return _render_body(snapshot,width,height,blink,stale,**options)
+                     width,rows,options.get('unicode',True),colour,
+                     options.get('truecolour',False),options.get('calm',False),
+                     options.get('theme','classic')).splitlines()
+    return '\n'.join(top+body[:-1]+artwork+body[-1:])
 
 
 def _render_body(snapshot, width, height, blink=False, stale=False, *, mode='balanced',
@@ -720,7 +728,7 @@ def main():
                          blink=not reduced_motion and state in {'idle','stopped'} and time.time()%6.5<.14,
                          stale=stale,mode=mode,now=time.time(),calm=calm,
                          reduced_motion=reduced_motion,unicode=unicode,
-                         colour=colour and not args.once,truecolour=truecolour,theme=args.theme)
+                         colour=colour and not args.once,truecolour=truecolour,theme=args.theme,crest=True)
             if args.attachment and detail(width,height) in {'full','compact','small'} and width>=18:
                 message=('Session: attached / '+LABELS.get(state,LABELS['unknown'])+(' / OLD SIGNAL' if stale else '')) if attached else 'Session: unattached — waiting for this launch’s trusted Keeper hook'
                 if detail(width,height)=='small':
