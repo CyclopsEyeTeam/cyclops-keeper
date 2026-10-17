@@ -21,11 +21,22 @@ GLYPHS = (' ',) + tuple(chr(0x2800+mask) for mask in range(1,256))
 ASCII_GLYPHS = (' ',) + tuple('|' if mask & 0x47 else '.' for mask in range(1,256))
 
 
-@lru_cache(maxsize=8)
-def colour_codes(truecolour, dim, calm):
+THEMES = {
+    'classic': COLOURS,
+    'moonlight': ((76,99,146),(121,158,211),(163,173,231),(197,186,242),
+                  (201,222,249),(239,246,255),(138,194,224),(180,194,226),
+                  (177,167,231),(207,162,183),(177,195,220)),
+    'ember': tuple((min(255,round(r*1.14)),round(g*.78),round(b*.55)) for r,g,b in COLOURS),
+    'moss': tuple((round(r*.73),min(255,round(g*1.06)),round(b*.68)) for r,g,b in COLOURS),
+    'terminal-green': tuple((round(g*.36),g,round(g*.5)) for r,g,b in COLOURS),
+}
+
+
+@lru_cache(maxsize=40)
+def colour_codes(truecolour, dim, calm, theme='classic'):
     factor=.48 if dim else .72 if calm else 1
     codes=[]
-    for rgb in COLOURS:
+    for rgb in THEMES.get(theme, THEMES['moonlight']):
         values=[round(v*factor) for v in rgb]
         if truecolour:
             codes.append("\x1b[38;2;"+";".join(map(str,values))+"m")
@@ -164,8 +175,8 @@ class Surface:
             prior=point
 
     def frame(self, status, *, caption=None, colour=False, truecolour=False,
-              dim=False, calm=False, unicode=True):
-        codes=colour_codes(truecolour,dim,calm) if colour else ()
+              dim=False, calm=False, unicode=True, theme='classic'):
+        codes=colour_codes(truecolour,dim,calm,theme) if colour else ()
         glyphs=GLYPHS if unicode else ASCII_GLYPHS
         output=[]
         for row_index,(masks,roles) in enumerate(zip(self.masks,self.roles)):
@@ -229,6 +240,38 @@ def life_amount(record, lively, calm, reduced_motion):
     if not lively or calm or reduced_motion or record['stale'] or record['state'] in {'unknown','ended'}:
         return 0
     return {'waiting':.25,'stopped':.35,'interrupted':.35,'idle':.65}.get(record['state'],1)
+
+
+def expression_particles(surface, record, now, centre, scale, *, lively=True,
+                         calm=False, reduced_motion=False):
+    """Sparse decoration, bounded by observed state and event age; no history."""
+    if not life_amount(record,lively,calm,reduced_motion):
+        return
+    state=record['state']
+    cx,cy=centre
+    def dot(angle,radius,role=2):
+        surface.point(cx+math.cos(angle)*radius*scale,
+                      cy+math.sin(angle)*radius*scale*.72,role,0)
+    if state in {'working','tool','branching'}:
+        for i in range(3):
+            dot(now*.65+i*math.tau/3,19+i*2)
+    elif state=='waiting':
+        radius=(8+math.sin(now*.9)*.6)*scale
+        surface.ellipse(centre,radius,radius*1.25,3,0,start=-.7,end=.7)
+    # One current event owns the transient; old history never replays a burst.
+    events=record.get('transitions',[])
+    event=max(events,key=lambda item:item['at'],default=None)
+    if event is None:
+        return
+    age=now-event['at']
+    if not 0<=age<1.2:
+        return
+    if event['event']=='Stop' and state=='stopped':
+        radius=(8+age*10)*scale
+        surface.ellipse(centre,radius,radius*.8,0,0,start=-2.8,end=1.3)
+    elif event['event'] in {'PreToolUse','PostToolUse'} and state in {'working','tool','branching'}:
+        for i in range(3):
+            dot(-.8+i*.4,20+age*9,5 if age<.35 else 0)
 
 
 def _witness_canvas(surface, record, *, body_rows, cx, cy, sx, sy, now, calm,
@@ -370,19 +413,19 @@ def _relation_surface(columns,rows,draw):
 
 def draw_keeper(record, columns, rows, status, *, mode='balanced', now=0,
                 calm=False, reduced_motion=False, blink=False, colour=False,
-                truecolour=False, lively=True, caption=None, relation_cache=True):
+                truecolour=False, lively=True, caption=None, relation_cache=True, theme='classic'):
     level=detail(columns,rows)
     if level in {'micro','insufficient'}:
-        return micro(record,columns,rows,now,unicode=True,reduced_motion=reduced_motion,calm=calm,colour=colour)
+        return micro(record,columns,rows,now,unicode=True,reduced_motion=reduced_motion,calm=calm,colour=colour,theme=theme)
     if level=='small':
         return miniature(record,columns,rows,status,now,colour=colour,truecolour=truecolour,
                          calm=calm,reduced_motion=reduced_motion,mode=mode,lively=lively,
-                         caption=caption)
+                         caption=caption,theme=theme)
     caption_rows=len(caption.splitlines()) if caption is not None else 0
     body_rows=max(0,rows-1-caption_rows)
     surface=Surface(columns,body_rows)
     if columns < 3 or rows < 3:
-        return surface.frame(status,caption=caption,colour=colour,truecolour=truecolour)
+        return surface.frame(status,caption=caption,colour=colour,truecolour=truecolour,theme=theme)
     w,h=columns*2,body_rows*4
     frozen=record['stale'] or record['state']=='unknown'
     state='unknown' if frozen else record['state']
@@ -548,6 +591,9 @@ def draw_keeper(record, columns, rows, status, *, mode='balanced', now=0,
             elif event['event']=='PostCompact':
                 ring(0,0,43+age*8,3,2,start=-1.5,end=-.1)
 
+    expression_particles(surface,record,now,(cx,cy),scale*7,
+                         lively=lively,calm=calm,reduced_motion=reduced_motion)
+
     # Draw the eye last, so an invocation can never overwrite its aperture.
     ring(0,0,34,2,3)
     ring(0,0,27,4,3,start=-2.7,end=1.7)
@@ -566,4 +612,4 @@ def draw_keeper(record, columns, rows, status, *, mode='balanced', now=0,
             line((-11,-10),(-11,10),3,4)
             line((11,-10),(11,10),3,4)
     return surface.frame(status,caption=caption,colour=colour,truecolour=truecolour,
-                         dim=frozen or state=='ended',calm=calm)
+                         dim=frozen or state=='ended',calm=calm,theme=theme)

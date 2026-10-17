@@ -265,7 +265,8 @@ def _ascii_witness(event,kind):
     return ['+-------+']+['|'+row.ljust(7)[:7]+'|' for row in motif]+['+-------+']
 
 
-def render(snapshot, width, height, blink=False, stale=False, *, expression=None, **options):
+def render(snapshot, width, height, blink=False, stale=False, *, expression=None, colour=False, **options):
+    options['colour']=colour
     # An authored lane is separate from observed captions and status. No extra
     # timer or animation: a cached raster is composed only when its data changes.
     if expression and width>=32 and height>=18:
@@ -281,7 +282,7 @@ def render(snapshot, width, height, blink=False, stale=False, *, expression=None
 
 def _render_body(snapshot, width, height, blink=False, stale=False, *, mode='balanced',
            now=0, calm=False, reduced_motion=False, unicode=True,
-           colour=False, truecolour=False, lively=True):
+           colour=False, truecolour=False, lively=True, theme='classic'):
     """Draw one exact cell grid. Tool routes are key-stable and viewport-clamped."""
     width=max(1,int(width));height=max(1,int(height))
     mode='focus' if mode=='focus' else 'balanced'
@@ -318,15 +319,15 @@ def _render_body(snapshot, width, height, blink=False, stale=False, *, mode='bal
     else:
         caption=None
     if detail(width,height) in {'micro','insufficient'}:
-        return micro(current,width,height,now,unicode=unicode,reduced_motion=reduced_motion,calm=calm,colour=colour)
+        return micro(current,width,height,now,unicode=unicode,reduced_motion=reduced_motion,calm=calm,colour=colour,theme=theme)
     if not unicode and detail(width,height)=='small':
         return miniature(current,width,height,status,now,unicode=False,reduced_motion=reduced_motion,
                          calm=calm,colour=colour,truecolour=truecolour,mode=mode,lively=lively,
-                         caption=caption)
+                         caption=caption,theme=theme)
     if unicode:
         return draw_keeper(current,width,height,status,mode=mode,now=now,
                            calm=calm,reduced_motion=reduced_motion,blink=blink,
-                           colour=colour,truecolour=truecolour,lively=lively,caption=caption)
+                           colour=colour,truecolour=truecolour,lively=lively,caption=caption,theme=theme)
     body_rows=max(0,height-1-(len(caption.splitlines()) if caption is not None else 0))
     grid=[[' ' for _ in range(width)] for _ in range(body_rows)]
     def put(x,y,ch):
@@ -530,7 +531,9 @@ def _render_body(snapshot, width, height, blink=False, stale=False, *, mode='bal
     if caption is not None:rows.append(caption)
     frame='\n'.join(rows+[status])
     if colour:
-        prefix=colour_code(load_palette().get(state,[160,170,164]),truecolour,current['stale'],calm)
+        from terminal_art import colour_codes
+        prefix=(colour_code(load_palette().get(state,[160,170,164]),truecolour,current['stale'],calm)
+                if theme=='classic' else colour_codes(truecolour,current['stale'],calm,theme)[4])
         frame='\n'.join(prefix+row+'\x1b[0m' for row in frame.split('\n'))
     return frame
 
@@ -654,6 +657,10 @@ def main():
     selection=parser.add_mutually_exclusive_group()
     selection.add_argument('--session',help='Pin the full session hash from the state file')
     selection.add_argument('--attachment',type=Path,help=argparse.SUPPRESS)
+    from terminal_art import THEMES
+    default_theme=os.environ.get('KEEPER_THEME','moonlight')
+    parser.add_argument('--theme',choices=tuple(THEMES),
+                        default=default_theme if default_theme in THEMES else 'moonlight')
     parser.add_argument('--no-colour',action='store_true')
     parser.add_argument('--ascii',action='store_true',help='Use the complete ASCII fallback')
     parser.add_argument('--calm',action='store_true',help='Lower contrast and ambient rhythm')
@@ -713,7 +720,7 @@ def main():
                          blink=not reduced_motion and state in {'idle','stopped'} and time.time()%6.5<.14,
                          stale=stale,mode=mode,now=time.time(),calm=calm,
                          reduced_motion=reduced_motion,unicode=unicode,
-                         colour=colour and not args.once,truecolour=truecolour)
+                         colour=colour and not args.once,truecolour=truecolour,theme=args.theme)
             if args.attachment and detail(width,height) in {'full','compact','small'} and width>=18:
                 message=('Session: attached / '+LABELS.get(state,LABELS['unknown'])+(' / OLD SIGNAL' if stale else '')) if attached else 'Session: unattached — waiting for this launch’s trusted Keeper hook'
                 if detail(width,height)=='small':

@@ -24,7 +24,7 @@ from launcher import child_guard,project_directory,safe_runtime
 from responsive import allocate, PresenceGate, CODEX_FLOOR
 
 FORWARD_ENV=('CODEX_HOME','PLUGIN_DATA','KEEPER_DATA','XDG_CONFIG_HOME','XDG_STATE_HOME',
-             'NO_COLOR','COLORTERM','LANG','LC_ALL')
+             'NO_COLOR','COLORTERM','LANG','LC_ALL','KEEPER_THEME')
 
 
 def companion_size(mode, columns, rows):

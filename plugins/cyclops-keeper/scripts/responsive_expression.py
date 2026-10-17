@@ -7,7 +7,7 @@ INDICATORS={'unknown':'?', 'idle':'.', 'working':'>', 'tool':'+', 'branching':'*
             'waiting':'!', 'compacting':'~', 'stopped':'=', 'interrupted':'x', 'ended':'-'}
 
 
-def micro(record, columns, rows, now, *, unicode=True, reduced_motion=False, calm=False, colour=False):
+def micro(record, columns, rows, now, *, unicode=True, reduced_motion=False, calm=False, colour=False, theme='classic'):
     if columns < 2 or rows < 1:
         return '\n'.join(' '*columns for _ in range(rows))
     frozen=record['stale'] or record['state']=='unknown'
@@ -20,15 +20,18 @@ def micro(record, columns, rows, now, *, unicode=True, reduced_motion=False, cal
         text+=pulse
     line=text.center(columns)
     if colour:
-        line='\x1b[38;5;'+('244' if frozen or state=='ended' else '223')+'m'+line+'\x1b[0m'
+        from terminal_art import colour_codes
+        code=('\x1b[38;5;'+('244' if frozen or state=='ended' else '223')+'m'
+              if theme=='classic' else colour_codes(False,frozen or state=='ended',calm,theme)[4])
+        line=code+line+'\x1b[0m'
     return '\n'.join(line if row==rows//2 else ' '*columns for row in range(rows))
 
 
 def miniature(record, columns, rows, status, now, *, colour=False, truecolour=False,
               calm=False, reduced_motion=False, unicode=True, mode='balanced', lively=True,
-              caption=None):
+              caption=None, theme='classic'):
     # Import only when drawing, avoiding a module-initialization cycle.
-    from terminal_art import Surface, life_amount
+    from terminal_art import Surface, life_amount, expression_particles
     caption_rows=len(caption.splitlines()) if caption is not None else 0
     surface=Surface(columns,max(0,rows-1-caption_rows))
     frozen=record['stale'] or record['state']=='unknown'
@@ -67,6 +70,8 @@ def miniature(record, columns, rows, status, now, *, colour=False, truecolour=Fa
     if record['active_subagents']:
         curve([(8,-18),(12,-23),(18,-19),(19,-14)],8)
         surface.ellipse(p(19,-14),2,2,8,2)
+    expression_particles(surface,record,now,(cx,cy),scale,
+                         lively=lively,calm=calm,reduced_motion=reduced_motion)
     eye_col=max(0,min(columns-1,round(cx/2)))
     eye_row=max(0,min(rows-2,round(cy/4)))
     surface.glyphs[(eye_row,eye_col)]='◎' if unicode else 'O'
@@ -77,4 +82,4 @@ def miniature(record, columns, rows, status, now, *, colour=False, truecolour=Fa
     if record.get('relations_incomplete'):label+=' ?'
     return surface.frame(label[:columns].ljust(columns),caption=caption,
                          colour=colour,truecolour=truecolour,
-                         dim=frozen or state=='ended',calm=calm,unicode=unicode)
+                         dim=frozen or state=='ended',calm=calm,unicode=unicode,theme=theme)

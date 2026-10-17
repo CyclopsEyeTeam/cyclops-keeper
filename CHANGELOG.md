@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Default new terminal launches to Moonlight, with optional Ember, Moss, Terminal Green and Classic palettes through `KEEPER_THEME` or the direct renderer's `--theme` option.
+- Add sparse working particles, observed-tool sparks, a waiting pulse and a short observed-Stop ripple; quiet controls and unavailable signals suppress the new effects.
+- Preserve Classic library defaults and historical raster fixtures. Focused checks pass; these additions do not resolve the existing resource HOLD or establish physical visual acceptance.
+
 - Add an event-gated illustration canvas below Keeper, with room for the latest observed event in tall terminal views and a compact mark in shorter views.
 - Add Keeper-voiced captions for observed turn, tool, branch, permission, interruption, session and compaction events; the second row reports only bounded live relations and a short event trail.
 - Keep captions whole in narrow views and keep quiet, stale and unknown observations free of invented activity.

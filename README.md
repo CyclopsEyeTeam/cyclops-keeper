@@ -111,6 +111,21 @@ Keeper’s membrane breathes and flexes, trailing filaments sway independently,
 and the crown and nearby satellite move subtly. Waiting is quieter. Arrival and
 return gestures follow observed events and last long enough to read.
 
+New launches use **Moonlight**: cool blue weave and a silver aperture.
+Choose `moonlight`, `ember`, `moss`, `terminal-green`, or `classic` with
+`KEEPER_THEME`, for example `KEEPER_THEME=moss codex --keeper side`.
+The direct renderer also accepts `--theme moss`. Refresh an installed plugin
+with `./install.sh` before starting a new session to use checkout changes.
+
+Working has three sparse orbiting particles; observed tool starts and returns
+add a brief spark. Waiting carries a slow aperture pulse, and an observed Stop
+produces one expanding ripple lasting 1.2 seconds. Stop does not imply success.
+Idle adds no particles. Calm, reduced motion, stale signals, and unknown or
+ended sessions suppress these effects. Tiny views retain their compact state
+indicator, and the large ASCII fallback retains its existing geometry.
+Themes change colour only; `NO_COLOR` still applies. The rendering library
+defaults to Classic so historical raster fixtures remain reproducible.
+
 Active decoration targets at most 15 new bodies per second; slower idle and
 calm rhythms keep their existing pace. Only changed terminal cells are written,
 with a complete repaint on resize. Observed state, session identity,
