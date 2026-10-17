@@ -791,8 +791,8 @@ def main():
             for event in painting_input.feed(data):
                 if event[0]=='click':painting_reader.event(event);continue
                 key=event[1]
-                if key in {b'q',b'Q',b'\x1b',b'\x03'}:quit_requested=True;break
                 if painting_reader.event(event):continue
+                if key in {b'q',b'Q',b'\x1b',b'\x03'}:quit_requested=True;break
                 if key in {b'c',b'C'}:calm=not calm;last_frame=None
                 if key in {b'r',b'R'}:reduced_motion=not reduced_motion;last_frame=None
                 if args.attachment and key in {b'c',b'C',b'r',b'R'}:

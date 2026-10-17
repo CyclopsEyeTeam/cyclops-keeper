@@ -67,7 +67,7 @@ class Reader:
     """Nonblocking UI endpoint; rendering, scanning and export jobs stay out of it."""
     def __init__(self):
         self.process=None;self.context=None;self.buffer=b'';self.lines=[];self.retired=[];self.next_retry=0
-        self.size=None;self.sketch=[];self.sketch_size=None;self.hits=[];self.busy=False;self.outgoing=b'';self.visible=False
+        self.size=None;self.sketch=[];self.sketch_size=None;self.hits=[];self.busy=False;self.outgoing=b'';self.visible=False;self.chatting=False;self.chat_seq=0;self.chat_pending=None
     def reap(self):
         import signal
         remaining=[]
@@ -86,7 +86,7 @@ class Reader:
                 except ProcessLookupError:pass
             self.process.stdout.close();self.process.stdin.close()
             self.retired.append((self.process,time.monotonic()))
-        self.process=None;self.context=None;self.buffer=b'';self.lines=[];self.hits=[];self.busy=False;self.outgoing=b'';self.size=None;self.sketch=[];self.sketch_size=None;self.visible=False
+        self.process=None;self.context=None;self.buffer=b'';self.lines=[];self.hits=[];self.busy=False;self.outgoing=b'';self.size=None;self.sketch=[];self.sketch_size=None;self.visible=False;self.chatting=False;self.chat_seq=0;self.chat_pending=None
         self.reap()
     def send(self,message):
         if not self.process or self.process.poll() is not None:return False
@@ -102,12 +102,16 @@ class Reader:
         except (BrokenPipeError,OSError):self.outgoing=b''
     def event(self,event):
         if not self.visible:return False
+        if self.chatting and event[0]=='key':return self.send({'chat_key':event[1].hex()})
         action=None
         if event[0]=='click':
             _,x,y=event
             action=next((h['action'] for h in self.hits if h['y']==y and h['x0']<=x<h['x1']),None)
         elif event[0]=='key':
-            action={b's':'story',b'v':'convert',b'o':'roll',b' ':'pause',b'n':'next',b'p':'prev',b'e':'end',b'x':'cancel'}.get(event[1])
+            action={b'h':'chat',b's':'story',b'v':'convert',b'o':'roll',b' ':'pause',b'n':'next',b'p':'prev',b'e':'end',b'x':'cancel'}.get(event[1])
+        if action=='chat':
+            self.chatting=True;self.chat_seq+=1;self.chat_pending=self.chat_seq
+            return self.send({'action':action,'chat_seq':self.chat_seq})
         return self.send({'action':action}) if action else False
     def load(self,path,session,attachment_identity,width,height,colour,unicode):
         self.reap();rows=panel_rows(width,height)
@@ -143,6 +147,8 @@ class Reader:
                 sketch=value.get('sketch',[])
                 self.sketch=sketch if isinstance(sketch,list) and len(sketch)<=24 and all(isinstance(s,str) for s in sketch) else []
                 self.lines=lines;self.hits=value['hits'];self.busy=value['busy']
+                if self.chat_pending is not None and value.get('chat_seq',0)>=self.chat_pending:self.chat_pending=None
+                if self.chat_pending is None:self.chatting=bool(value.get('chatting'))
         except BlockingIOError:pass
         except (OSError,ValueError,KeyError,TypeError):self.close()
         sketch_rows=min(24,max(6,(height-len(self.lines))//3))

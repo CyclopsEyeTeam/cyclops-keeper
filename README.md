@@ -206,3 +206,13 @@ Exports run separately with a progress bar, percentage, completion at **100%**, 
 Export dependencies are Pillow (`python3-pil`) and ffmpeg for rolls. Roll work storage uses the configured Cyclops HDD scratch volume and refuses a missing/wrong volume. At most 60 paintings per export; the selectable collection is limited to 1000, with an explicit message rather than silent truncation. No automatic refined/interpretive model calls, transcript copying, or shared painting parts are added.
 
 The **Free/Work** button selects independent or broadly work-inspired subjects for the next assistant composition. The assistant reads the launch-bound painting brief; this is not a background model call. Fresh windows show an outline of the latest saved Keeper painting until a live sketch arrives. Reported painting token counts appear when supplied; unknown usage is omitted.
+
+## Painting chat
+
+Click **Chat** above a painting (or press `h` in Keeper's pane). Type a question and press Enter or Send. Escape returns to the painting; Ctrl-C or Cancel stops the side reply. Older/Newer scroll the side history. Typing in this editor never enters the work terminal.
+
+The conversation uses the selected picture and up to ten previous side exchanges. It does not import the work conversation. Replies run through your signed-in Codex CLI in an empty working directory with project instructions, memories, plugins and execution tools disabled. The first reply can include substantial Codex instruction overhead; the display shows actual reported input/output tokens, not a monetary estimate. It never sends a message until you press Send.
+
+History is private plugin state under `painting-chat/`, separate from painting JSON and the content-free activity feed. A Studio-owned session shares that history with **Chat about a painting…** in Keeper's right-click menu when Studio has the matching side-chat integration. Studio can explicitly use its displayed picture; otherwise it uses the terminal chat selection or latest Keeper painting. Cancelling stops the pending local reply process; tokens already consumed are not refunded.
+
+Updating this repository updates only the terminal mod. Studio's UI integration is a separate patch in Studio's repository.

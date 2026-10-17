@@ -424,6 +424,7 @@ def _worker(data_root, state_key, presence_root):
             fcntl.flock(worker_lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             return
+        side=None
         while True:
             lock_fd = os.open(lock_path, flags, 0o600)
             with os.fdopen(lock_fd, 'r+') as state_lock:
@@ -458,6 +459,13 @@ def _worker(data_root, state_key, presence_root):
                         return
                 except (OSError, ValueError, TypeError, KeyError):
                     return
+            # Side chat is optional and runs outside the activity-state lock.
+            try:
+                if side is None:
+                    from painting_chat import Bridge
+                    side=Bridge(data_root,state_key,presence_root,feed_target[1],Path.cwd())
+                side.tick(record['run'],state.get('_producer'))
+            except (OSError,ValueError,TypeError,KeyError):pass
             time.sleep(0.2)
 
 

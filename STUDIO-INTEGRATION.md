@@ -20,3 +20,10 @@ The former no-external-write test now checks an invalid Studio ID; dedicated tes
 The renderer lives separately in `../render`, preserves the accepted body and adds a restrained woven crest. No renderer timer manufactures activity. Reduced motion and disconnected states freeze the ornament.
 
 Version remains 0.5.0 with Unreleased additions. The historical resource HOLD remains unchanged. Studio automatic updates are configured separately by Studio and are not changed by this repository. The previous source folder can remain in place.
+
+
+## Painting side chat
+
+Studio sends Keeper questions in `studio.json` under `keeperAsk`, with an explicit current `run`, question `id`, `text`, `t`, and optional selected `painting`. Keeper ignores Spark's `ask` field. Clearing that Keeper request cancels it. The terminal and Studio share a private per-Codex-session painting conversation. Keeper writes only bounded side answers/status/usage to its own `side.json`, tagged with the feed run; these are deliberately separate from the content-free activity feed. Studio validates current producer ownership before accepting asks or clears.
+
+The accompanying Studio UI/backend patch is not included in this repository, and `install.sh` does not modify Studio.

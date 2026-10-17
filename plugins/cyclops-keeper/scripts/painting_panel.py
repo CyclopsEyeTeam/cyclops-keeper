@@ -14,6 +14,9 @@ class Panel:
         self.way='truest';self.target='current';self.levels=16;self.music=True;self.cache=None;self.cached=[];self.cancelled=False
         from painting_choice import read
         self.painting_mode=read(path,expected)
+        self.chat=None;self.chatting=False;self.chat_scroll=0
+        from painting_chat import Editor
+        self.editor=Editor()
         self.sketch_rows=8;self.outline_key=None;self.outline_lines=[]
     def project(self):
         state=read_attachment(self.path)
@@ -41,7 +44,18 @@ class Panel:
     def current(self,now):return self.story.frame(now) if self.story.active else (self.own,1)
     def action(self,action,now=None):
         now=time.monotonic() if now is None else now
-        if action=='painting_mode':
+        if action=='chat':
+            from activity import default_data
+            from painting_chat import Chat
+            self.chat=Chat(default_data(),self.expected['session']);self.chatting=True;self.chat_scroll=0
+            p,_=self.current(now)
+            if p:self.chat.select(p)
+        elif action=='chat_back':self.chatting=False
+        elif action=='chat_send':self.chat_send()
+        elif action=='chat_cancel':self.chat.cancel()
+        elif action=='chat_older':self.chat_scroll+=max(1,self.rows-5)
+        elif action=='chat_newer':self.chat_scroll=max(0,self.chat_scroll-max(1,self.rows-5))
+        elif action=='painting_mode':
             from painting_choice import write
             mode='work' if self.painting_mode=='free' else 'free'
             write(self.path,self.expected,mode);self.painting_mode=mode
@@ -82,6 +96,43 @@ class Panel:
                 self.cancelled=True;os.killpg(self.job.pid,signal.SIGTERM);self.cancel_at=now
                 self.message='Cancelling export'
         elif action=='back':self.menu=None;self.message=''
+    def chat_key(self,value):
+        if not self.chatting:return
+        action=self.editor.key(bytes.fromhex(value))
+        if action:self.action({'send':'chat_send','back':'chat_back','cancel':'chat_cancel'}[action])
+    def chat_send(self):
+        if not self.chat or not self.editor.text.strip():return
+        try:
+            state=read_attachment(self.path)
+            if identity(state)!=self.expected:raise ValueError('Attachment changed')
+            if self.chat.submit(self.editor.text,owner=state.get('codex')):
+                self.editor.text='';self.chat_scroll=0;self.message=''
+        except (OSError,ValueError) as error:self.message=str(error)[:100]
+    def chat_frame(self):
+        import textwrap
+        from painting_chat import usage_text,BUSY
+        state=self.chat.snapshot();lines=[];hits=[]
+        def row(items):
+            line,h=buttons(items,self.width,len(lines));lines.append(line);hits.extend(h)
+        row([('Send','chat_send'),('Cancel','chat_cancel'),('Older','chat_older'),('Newer','chat_newer'),('Back','chat_back')])
+        title=(state.get('painting') or {}).get('title','Choose a painting')
+        text=[title+' | separate painting chat']
+        for turn in state.get('history',[]):
+            text+=['You: '+turn['question'],'Keeper: '+turn['answer']]
+            cost=usage_text(turn.get('usage'))
+            if cost:text.append(cost)
+        if state.get('status') in BUSY:text+=['You: '+state.get('question',''),'Answering... (Cancel available)']
+        elif state.get('status') in ('error','cancelled'):text.append(state.get('error') or 'Cancelled')
+        if self.message:text.append(self.message)
+        wrapped=[]
+        for item in text:wrapped+=textwrap.wrap(item.encode('ascii','replace').decode(),max(1,self.width)) or ['']
+        count=max(1,self.rows-3);self.chat_scroll=min(self.chat_scroll,max(0,len(wrapped)-count))
+        end=max(0,len(wrapped)-self.chat_scroll)
+        lines+=wrapped[max(0,end-count):end]
+        lines+=['']*max(0,self.rows-2-len(lines))
+        lines+=['> '+self.editor.text.encode('ascii','replace').decode()[-max(1,self.width-3):], 'Enter: send | Esc: back | Ctrl-C: cancel']
+        return dict(lines=[s[:self.width].ljust(self.width) for s in lines[:self.rows]],sketch=[],hits=hits,
+                    busy=state.get('status') in BUSY,chatting=True,size=[self.width,self.rows])
     def roll_summary(self):
         from painting_music import score
         n=len(self.items());seconds=round(score(self.items())['duration'])
@@ -129,6 +180,7 @@ class Panel:
             self.job.stdout.close()
     def draw(self,now):
         self.poll_job()
+        if self.chatting:return self.chat_frame()
         if now>=self.next_scan and not self.job:self.scan()
         p,reveal=self.current(now)
         if not p and not self.library and not self.has_any and not self.menu and not self.status:
@@ -137,7 +189,7 @@ class Panel:
         lines=[];hits=[]
         def row(items):
             line,h=buttons(items,self.width,len(lines));lines.append(line);hits.extend(h)
-        row([('Story','story'),('Convert','convert'),('Roll','roll'),('Work' if self.painting_mode=='work' else 'Free','painting_mode')])
+        row([('Story','story'),('Convert','convert'),('Roll','roll'),('Chat','chat'),('Work' if self.painting_mode=='work' else 'Free','painting_mode')])
         if self.status and (self.job or (self.status.get('fraction')==1 and not self.message and not self.menu)):
             available=max(6,self.width-(10 if self.job else 0))
             label=self.status['label'][:max(0,available-28)]
@@ -177,7 +229,7 @@ class Panel:
 
 
 def run(path,expected,width,rows,colour,unicode):
-    panel=Panel(path,expected,width,rows,colour,unicode);pending=b'';last=None
+    panel=Panel(path,expected,width,rows,colour,unicode);chat_seq=0;pending=b'';last=None
     def stop(_s,_f):raise KeyboardInterrupt
     signal.signal(signal.SIGTERM,stop)
     # If the owning terminal dies unexpectedly, stop this worker and its job.
@@ -194,10 +246,14 @@ def run(path,expected,width,rows,colour,unicode):
                 if len(pending)>65536:return
                 while b'\n' in pending:
                     line,pending=pending.split(b'\n',1);req=json.loads(line)
+                    if 'chat_seq' in req:chat_seq=int(req['chat_seq'])
                     if 'resize' in req:panel.width,panel.rows=req['resize'];panel.cache=None
                     if 'sketch_rows' in req:panel.sketch_rows=max(6,min(24,int(req['sketch_rows'])))
-                    if 'action' in req:panel.action(req['action'])
-            frame=panel.draw(time.monotonic())
+                    try:
+                        if 'action' in req:panel.action(req['action'])
+                        if 'chat_key' in req:panel.chat_key(req['chat_key'])
+                    except (OSError,ValueError) as error:panel.message=str(error)[:100]
+            frame=panel.draw(time.monotonic());frame['chat_seq']=chat_seq
             if identity(read_attachment(path))!=expected:return
             encoded=json.dumps(frame)
             if encoded!=last:print(encoded,flush=True);last=encoded

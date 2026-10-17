@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add a separate painting Chat panel with follow-up history, background replies, cancellation and actual token usage. Support Studio’s dedicated Keeper question mailbox without reading the work conversation or writing chat into painting files. Studio UI support is maintained separately.
+
 - Publish an optional privacy-filtered live/durable activity feed for Studio-owned sessions. Keep terminal activity authoritative, exact tool correlations, bounded history and producer-bound heartbeats; ordinary sessions publish no feed. This does not clear the historical resource HOLD.
 
 - Replace the default text constellation with a compact woven-light crest and an eight-second travelling bead. Preserve custom crests, ASCII rendering and quiet-mode freezing; artwork choices remain independent.
