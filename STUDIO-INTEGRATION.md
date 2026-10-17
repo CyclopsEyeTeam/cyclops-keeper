@@ -29,3 +29,5 @@ Studio sends Keeper questions in `studio.json` under `keeperAsk`, with an explic
 The accompanying Studio UI/backend patch is not included in this repository, and `install.sh` does not modify Studio.
 
 The installer preserves older numeric cache files for open sessions after a refresh. Successful upgrades remove their old plugin manifests so only the current version is discoverable; failed upgrades preserve the original metadata. Rollback copies are retained under Codex plugin data (`cyclops-keeper-install`); they are installation state, not painting data. Existing sessions still need relaunching to load new code.
+
+From 0.6.3, Bash sources the integration from this checkout and uses this checkout’s renderer. Keep this source folder available. Retire obsolete same-name project marketplace descriptors before using an old checkout as a work folder; keep those files as backups rather than deleting historical sources.

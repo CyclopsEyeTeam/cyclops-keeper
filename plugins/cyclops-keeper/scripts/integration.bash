@@ -9,7 +9,7 @@ KEEPER_SHELL_ACTIVE=1
 codex() {
     case "${1-}" in
         --keeper|--keeper-side|--keeper-top)
-            python3 -B "$KEEPER_LAUNCHER" "$@"
+            KEEPER_PLUGIN_ROOT="${KEEPER_LAUNCHER%/scripts/launcher.py}" python3 -B "$KEEPER_LAUNCHER" "$@"
             ;;
         *) command codex "$@" ;;
     esac

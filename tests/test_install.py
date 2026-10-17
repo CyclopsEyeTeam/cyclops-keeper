@@ -91,6 +91,8 @@ elif args[:1] != ['plugin']:
         self.assertEqual(first.returncode, 0, first.stderr)
         installed = self.rc.read_text()
         self.assertNotEqual(installed, self.original, 'plain install did not enable the commands')
+        self.assertIn(str(ROOT/'plugins/cyclops-keeper/scripts/integration.bash'),installed)
+        self.assertNotIn('/plugins/cache/',installed)
         again = self.run_script('install.sh')
         self.assertEqual(again.returncode, 0, again.stderr)
         self.assertEqual(self.rc.read_text(), installed)

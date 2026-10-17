@@ -28,7 +28,7 @@ python3 -B "$here/install_cache.py" >/dev/null 2>&1 \
   || fail "Codex could not install the plugin. Run 'codex plugin add $plugin' to see why."
 say "  plugin: installed"
 
-python3 -B "$here/plugins/cyclops-keeper/scripts/shell_setup.py" install
+python3 -B "$here/plugins/cyclops-keeper/scripts/shell_setup.py" install --integration "$here/plugins/cyclops-keeper/scripts/integration.bash"
 say ""
 say "Installed. Open a new Bash terminal, then use:"
 say "  codex --keeper side    Keeper beside Codex in this terminal"

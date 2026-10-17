@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.6.3 — Stable terminal launcher · 17 October 2026
+
+- Register the terminal wrapper from the installation source and explicitly use that renderer, so replacement of the Codex cache cannot remove the shell command or select an older terminal.
+
 ## 0.6.2 — Single installed version · 17 October 2026
 
 - Retain old-session hook files without their plugin manifests after a successful upgrade, preventing old caches from being rediscovered as installed versions. Failed upgrades retain the original installation metadata.
