@@ -181,12 +181,23 @@ class MoreLayouts(unittest.TestCase):
 
     def test_missing_environment_variables_stay_absent_in_the_owned_pane(self):
         with tempfile.TemporaryDirectory() as tmp:
-            launch=Launch(tmp,label='absent-env',env_update={'CODEX_HOME':None,'NO_COLOR':None})
+            launch=Launch(tmp,label='absent-env',env_update={'CODEX_HOME':None,'NO_COLOR':None,'CYCLOPS_SESSION_ID':None,'CYCLOPS_PRESENCE_ROOT':None})
             try:
                 launch.attached()
                 ready=launch.wait(lambda:json.loads(launch.state_path.with_suffix('.ready').read_text()))
                 variables=Path('/proc/'+str(ready['pid'])+'/environ').read_bytes().split(b'\0')
-                self.assertFalse(any(x.startswith(b'CODEX_HOME=') or x.startswith(b'NO_COLOR=') for x in variables))
+                self.assertFalse(any(x.startswith((b'CODEX_HOME=', b'NO_COLOR=', b'CYCLOPS_SESSION_ID=', b'CYCLOPS_PRESENCE_ROOT=')) for x in variables))
+            finally:launch.close()
+
+    def test_studio_binding_reaches_owned_codex_pane(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            launch=Launch(tmp,label='studio-env',env_update={'CYCLOPS_SESSION_ID':'studio-owned','CYCLOPS_PRESENCE_ROOT':str(Path(tmp)/'feed')})
+            try:
+                launch.attached()
+                ready=launch.wait(lambda:json.loads(launch.state_path.with_suffix('.ready').read_text()))
+                variables=Path('/proc/'+str(ready['pid'])+'/environ').read_bytes().split(b'\0')
+                self.assertIn(b'CYCLOPS_SESSION_ID=studio-owned',variables)
+                self.assertIn(('CYCLOPS_PRESENCE_ROOT='+str(Path(tmp)/'feed')).encode(),variables)
             finally:launch.close()
 
     def test_top_resize_keeps_identity_and_allocates_proportionally(self):

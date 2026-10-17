@@ -164,6 +164,8 @@ This release is local-only: Cyclops Link broadcasting and peer overlays are
 retired. Older consent files are preserved but inactive here. Existing sessions
 keep their loaded version; start a new session after refresh. See [PROTOCOL.md](PROTOCOL.md).
 
+Studio-owned terminals can also publish the same content-free observed activity to the Presence pane. See [Studio integration](STUDIO-INTEGRATION.md) for activation, feed boundaries and the retained resource HOLD.
+
 ## Remove
 
 ```bash

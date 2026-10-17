@@ -658,9 +658,9 @@ class FaceTests(unittest.TestCase):
             p.stdout.close()
             p.stderr.close()
 
-    def test_keeper_writes_only_its_own_data_whatever_the_environment_says(self):
+    def test_keeper_ignores_feed_paths_without_a_valid_studio_session(self):
         outside = self.data / 'outside'
-        env = {'CYCLOPS_SESSION_ID': 'pane-1', 'CYCLOPS_PRESENCE_ROOT': str(outside),
+        env = {'CYCLOPS_SESSION_ID': '../invalid-pane', 'CYCLOPS_PRESENCE_ROOT': str(outside),
                'XDG_STATE_HOME': str(outside / 'state')}
         for event in ('SessionStart', 'UserPromptSubmit', 'Stop', 'SessionEnd'):
             self.hook(event, extra_env=env, **({'source': 'startup'} if event == 'SessionStart' else {}))

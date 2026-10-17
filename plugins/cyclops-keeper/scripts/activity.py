@@ -298,6 +298,44 @@ def update(data, payload):
                   '_transitions': ribbon}
         if '_state_before_compaction' in old:
             record['_state_before_compaction'] = old['_state_before_compaction']
+        studio = None
+        if os.environ.get('CYCLOPS_SESSION_ID'):
+            import presence_feed, feed_state
+            studio = presence_feed.studio_target()
+        start_worker = False
+        if studio:
+            presence_root, studio_session = studio
+            current_presence = old.get('_presence_feed')
+            owner = digest(studio_session)
+            binding = presence_feed.binding(presence_root, studio_session)
+            fresh_session = event == 'SessionStart' and payload.get('source') != 'compact'
+            if (not isinstance(current_presence, dict) or current_presence.get('v') != 1
+                    or current_presence.get('owner') != owner
+                    or old.get('_presence_binding') != binding or fresh_session):
+                current_presence = presence_feed.new_record(studio_session, started_at=at)
+                current_presence['checkpoint'] = feed_state.from_activity(old)
+            presence_feed.reconcile(current_presence, presence_root,
+                                    studio_session=studio_session)
+            event_key = (call_key if event == 'PreToolUse' else matched_tool_key
+                         if event == 'PostToolUse' else agent_key
+                         if event == 'SubagentStart' else matched_agent_key
+                         if event == 'SubagentStop' else None)
+            presence_feed.append_host_event(current_presence, payload,
+                current_presence.get('seq', 0) + 1, at=at, key=event_key, kind=kind,
+                phase=feed_state.PHASE.get(state), incomplete=incomplete)
+            record['_presence_feed'] = current_presence
+            record['_producer'] = presence_feed.producer_identity()
+            record['_presence_binding'] = binding
+            presence_feed._atomic_json(target,record)
+            try:
+                presence_feed.flush(current_presence, presence_root, studio_session=studio_session, now=at,
+                                    force=fresh_session or event=='SessionEnd', force_live=event == 'SessionEnd')
+            except (OSError, ValueError, TypeError):
+                # Studio is an optional observer. Keep the host event and the
+                # pending feed record locally so a later event can retry.
+                start_worker = False
+            else:
+                start_worker = True
         fd, name = tempfile.mkstemp(prefix=key + '-', suffix='.tmp', dir=directory)
         try:
             with os.fdopen(fd, 'w') as f:
@@ -310,6 +348,9 @@ def update(data, payload):
                 os.unlink(name)
             except FileNotFoundError:
                 pass
+
+        if start_worker and studio and record.get('_producer'):
+            presence_feed.start_worker(data, key, studio[0])
 
     # All replacements have fsynced content before entering the namespace.
     # A later replacement therefore contains a complete durable descendant of
