@@ -100,8 +100,13 @@ once and reused while Keeper’s membrane and aperture continue moving. A new
 observed arrival bypasses the cache until its gesture settles. In a focused
 100×32 dense PTY comparison, the layer cache reduced median renderer CPU from
 35.75% to 23.94% of one core; sampled memory rose by 0.69 MiB. This is a
-three-pair synthetic comparison, not a full resource acceptance result. See
-[validation](docs/VALIDATION.md) for the full scope and retained earlier matrix.
+three-pair synthetic comparison. The complete current-source 90-case matrix
+has now run: 7/15 CPU bounds, 15/15 RSS bounds and 14/15 composition bounds
+passed, while 0/15 cells passed the repeatability bound. Its recommendation is
+HOLD. The run uses a renderer PTY without tmux and is not a physical display
+latency test; the paced 15 Hz target also produces more frames than the
+uncapped control. See [validation](docs/VALIDATION.md) for full results and
+limits.
 
 Keeper does not store prompts, replies, reasoning, tool arguments, results,
 transcripts, raw session IDs or project paths in its public presence feed.

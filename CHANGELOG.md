@@ -7,6 +7,7 @@
 - Keep captions whole in narrow views and keep quiet, stale and unknown observations free of invented activity.
 - Preserve the original terminal body fixture, update the captioned render baseline, and add explicit coverage for missing event evidence and resize-safe caption layouts.
 - Reuse a bounded raster layer for settled tool and branch tethers while Keeper’s body keeps moving; fresh observed arrival gestures bypass the cache.
+- Run the complete current-source terminal resource matrix and record its CPU/repeatability HOLD alongside the focused cache improvement.
 - Keep the main README and validation notes aligned with the current source and scoped performance evidence.
 
 ## 0.5.0 — Simple terminal presence

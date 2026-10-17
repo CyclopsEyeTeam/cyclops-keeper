@@ -16,10 +16,11 @@ preserved 120-frame fixture. The 320-case captioned raster fixture also passes.
 The new dense-cache tests compare cached and direct frames, confirm Keeper’s
 body still moves, and confirm fresh tool/branch arrivals bypass the cache.
 
-Local verification completed on Python 3.12:
+Current local verification completed on Python 3.12:
 
-- 68 focused expression, identity, caption, layout and pacing tests passed.
-- 4 raster conformance tests passed, including the preserved original frames.
+- 55 renderer, event, raster and pacing tests passed across four focused suites.
+- The raster suite includes 320 captioned cases; render-work checks include the
+  preserved 120-frame original fixture.
 
 The full repository suite passed on both supported CI interpreters: 162 tests
 on Python 3.10 and 162 on Python 3.12, under Ubuntu 24.04 with packaged tmux
@@ -60,9 +61,56 @@ its AF_UNIX control socket, before its layout/focus assertions could run. Those
 are environment-limited local results; the full GitHub suite passed with the
 workflow’s Ubuntu tmux and Xvfb.
 
-The focused post-cache comparison improves the dense full pane. The complete
-90-case matrix has not been rerun after this cache, so the other resource cells
-and full repeatability remain unmeasured for the current source.
+### Complete current-source resource matrix — HOLD (17 October 2026)
+
+The unchanged `tools/measure.py` matrix completed all 90 cases against the
+current cached renderer. It retains three 20-second CPU windows after a
+two-second warmup for each cell, with alternating native/paced order and the
+same four uncoloured grids plus a full-size truecolour supplement. The run
+folder contains the source snapshot, per-second samples, output captures,
+plan, results and hashes under the designated HDD scratch root.
+
+| Grid | Colour | Activity | Native CPU | Paced CPU | CPU | RSS | Loop p95 native/paced ms | Loop | Repeatability |
+| ---: | :--- | :--- | ---: | ---: | :---: | :---: | ---: | :---: | :---: |
+| 100×32 | off | idle | 5.64% | 4.05% | PASS | PASS | 24.91 / 23.12 | PASS | HOLD |
+| 100×32 | off | working | 14.84% | 17.24% | FAIL | PASS | 26.03 / 25.81 | PASS | HOLD |
+| 100×32 | off | dense | 16.35% | 19.70% | FAIL | PASS | 27.32 / 25.84 | PASS | HOLD |
+| 48×20 | off | idle | 2.25% | 2.85% | PASS | PASS | 10.15 / 11.90 | FAIL | HOLD |
+| 48×20 | off | working | 5.35% | 9.45% | FAIL | PASS | 10.52 / 10.74 | PASS | HOLD |
+| 48×20 | off | dense | 6.40% | 9.70% | FAIL | PASS | 11.05 / 12.56 | PASS | HOLD |
+| 24×12 | off | idle | 1.05% | 0.95% | PASS | PASS | 4.03 / 4.00 | PASS | HOLD |
+| 24×12 | off | working | 2.70% | 3.50% | PASS | PASS | 4.14 / 3.95 | PASS | HOLD |
+| 24×12 | off | dense | 3.30% | 8.69% | FAIL | PASS | 6.87 / 7.82 | PASS | HOLD |
+| 6×1 | off | idle | 0.40% | 0.40% | PASS | PASS | 0.43 / 0.38 | PASS | HOLD |
+| 6×1 | off | working | 1.00% | 1.00% | PASS | PASS | 0.42 / 0.31 | PASS | HOLD |
+| 6×1 | off | dense | 3.30% | 5.20% | FAIL | PASS | 2.57 / 2.76 | PASS | HOLD |
+| 100×32 | truecolour | idle | 4.75% | 5.35% | PASS | PASS | 25.70 / 25.53 | PASS | HOLD |
+| 100×32 | truecolour | working | 15.64% | 18.13% | FAIL | PASS | 29.20 / 24.69 | PASS | HOLD |
+| 100×32 | truecolour | dense | 17.59% | 26.64% | FAIL | PASS | 29.33 / 27.56 | PASS | HOLD |
+
+The aggregate recommendation is **HOLD**: 7/15 CPU cells passed, 15/15 RSS
+cells passed, 14/15 composition-loop cells passed, and 0/15 repeatability
+cells passed. The limits are unchanged: CPU is native plus at most the larger
+of one percentage point or 10%; RSS is native plus 8 MiB; composition-loop
+p95 is native ×1.10 +0.5 ms; per-variant spread must be at most 10%.
+
+This is a synthetic single-renderer PTY run, not a tmux or physical display
+measurement. The harness removes `TMUX` variables and runs one renderer in a
+PTY. At 100×32, the paced renderer produced median 326 working and 320 dense
+frames across the warmup plus CPU window, compared with 207 and 205 from the
+native control. The production 15-per-second active target therefore performs
+more composition work than the uncapped control in these active cells; this
+CPU comparison is not an equal-frame-rate efficiency comparison. The cache
+still reduces settled relation work within each frame, but the full CPU gate
+does not pass.
+
+The pinned CPU's sampled endpoint frequency ranged from 0.80 to 4.47 GHz during
+the run. This variation is a material measurement confound, not a demonstrated
+root cause and not grounds to discard samples. The run recommendation remains
+HOLD. CPU is child user+system time as a share of one core; composition p95
+includes cache hits, and RSS is a 1 Hz sampled maximum rather than an
+exhaustive peak. The harness and all 18 captured plugin source hashes match the
+current source.
 
 ## Historical source and preparation evidence
 

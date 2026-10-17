@@ -6,25 +6,29 @@ Current source: main branch. These checks describe repository source, not a
 tagged archive or installed copy.
 
 Local verification:
-- 68 focused expression, identity, caption, layout and pacing tests passed.
-- 4 raster conformance tests passed, including the preserved original frames.
+- 55 renderer, event, raster and pacing tests passed across four focused suites.
+- The raster suite includes 320 captioned cases; render-work checks include
+  the preserved 120-frame original fixture.
 - Three 20-second dense 100×32 PTY comparisons per version measured median
   renderer CPU falling from 35.75% to 23.94% of one core and p95 composition
   falling from 40.85 ms to 27.05 ms. Sampled RSS increased by 0.69 MiB.
-- The before/after comparison exercises stable tool and branch tethers only;
-  it is not the complete 90-case resource matrix.
+- The complete current-source 90-case matrix ran: CPU passed 7/15 cells, RSS
+  passed 15/15, composition p95 passed 14/15, and repeatability passed 0/15.
+  Its current recommendation is HOLD; the full table and limits are in
+  docs/VALIDATION.md.
 - GitHub Actions passed the full 162-test suite on Python 3.10 and 3.12 under
   Ubuntu 24.04 with packaged tmux and isolated X11:
   https://github.com/CyclopsEyeTeam/cyclops-keeper/actions/runs/38982158688
 
-The full 90-case matrix predates the tether-layer cache. Its measured source
-had failing CPU and repeatability cells, and endpoint CPU frequency ranged from
-about 0.8 to 4.4 GHz. Those records remain in docs/VALIDATION.md and the
-HDD-backed run folder. A full matrix against the current source has not run.
+The pre-cache matrix remains in docs/VALIDATION.md as historical evidence. The
+current matrix ran against an exact captured source snapshot. Its pinned CPU's
+endpoint frequency ranged from 0.80 to 4.47 GHz; this is retained as a
+measurement confound, not used to remove samples or waive the HOLD.
 
-Local tmux integration could not create an AF_UNIX socket in this restricted
-sandbox. The successful GitHub run exercises those checks in the supported CI
-environment.
+Local terminal/launcher integration could not create AF_UNIX sockets in this
+restricted sandbox. The successful GitHub run exercises those checks in the
+supported CI environment. The resource matrix itself is renderer-only and
+does not measure tmux overhead.
 
 The public release archive is a frozen snapshot from an earlier source commit.
 It does not contain the current main-branch changes.
