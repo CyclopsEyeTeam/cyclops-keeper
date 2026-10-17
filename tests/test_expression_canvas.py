@@ -13,6 +13,34 @@ import terminal
 
 
 class ExpressionCanvas(unittest.TestCase):
+    def test_live_crest_moves_but_respects_quiet_modes(self):
+        def top(now, **options):
+            return terminal.render('working',54,40,crest=True,now=now,
+                                   **options).splitlines()[:4]
+        self.assertNotEqual(top(1),top(2))
+        for options in ({'calm':True},{'reduced_motion':True},{'stale':True},
+                        {'lively':False}):
+            self.assertEqual(top(1,**options),top(2,**options))
+        for now in (0,1,2,3):
+            self.assertEqual(set(map(len,top(now))),{54})
+
+    def test_event_panel_is_centered_wide_and_open(self):
+        from terminal_art import Surface, _witness_canvas
+        surface=Surface(54,60)
+        record={'sequence':1,'event_observed':True,
+                'transitions':[{'sequence':1,'event':'Stop','at':0}]}
+        _witness_canvas(surface,record,body_rows=60,cx=42,cy=40,sx=.2,sy=.2,
+                        now=10,calm=False,reduced_motion=False,frozen=False,lively=True)
+        occupied=[(r,c) for r,row in enumerate(surface.masks) for c,m in enumerate(row) if m]
+        left=min(c for r,c in occupied);right=max(c for r,c in occupied)
+        top=min(r for r,c in occupied);bottom=max(r for r,c in occupied)
+        self.assertLessEqual(abs(top-(59-bottom)),1)
+        self.assertLessEqual(abs(left-(53-right)),1)
+        self.assertGreaterEqual(right-left+1,46)
+        self.assertLess(sum(m.bit_count() for row in surface.masks for m in row),1000)
+        self.assertGreater(len({surface.roles[r][c] for r,c in occupied}),1)
+        self.assertTrue(any(0<m<255 for row in surface.masks for m in row))
+
     def test_crest_keeps_canvas_and_status_and_hides_in_short_panes(self):
         art={'crest':{'motif':'moon','phrase':'A little orbit of light.'},
              'strokes':[{'ink':'gold','points':[[0,0],[1,1]]}]}

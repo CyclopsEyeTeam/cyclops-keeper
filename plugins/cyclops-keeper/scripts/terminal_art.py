@@ -274,9 +274,18 @@ def expression_particles(surface, record, now, centre, scale, *, lively=True,
             dot(-.8+i*.4,20+age*9,5 if age<.35 else 0)
 
 
+def _centered_canvas_rows(record, columns, body_rows):
+    if (columns>=32 and body_rows>=max(28,columns*.65)
+            and record.get('event_observed')
+            and any(item['sequence']==record.get('sequence')
+                    for item in record.get('transitions',[]))):
+        return min(18,max(8,round(body_rows*.30)))
+    return 0
+
+
 def _witness_canvas(surface, record, *, body_rows, cx, cy, sx, sy, now, calm,
                     reduced_motion, frozen, lively):
-    """Paint the latest observed event in a canvas below Keeper when it fits."""
+    """Center the observed drawing in tall panes; use spare space in short ones."""
     if surface.columns < 32 or body_rows < 8:
         return
 
@@ -291,12 +300,13 @@ def _witness_canvas(surface, record, *, body_rows, cx, cy, sx, sy, now, calm,
     tail_bottom=cy+216*sy
     below_row=math.ceil(tail_bottom/4)+1
     below_rows=body_rows-below_row
-    if below_rows>=5:
-        tile_columns=min(48,surface.columns-4,max(16,round(surface.columns*.72)))
-        tile_rows=min(12,below_rows)
-        left=max(2,math.ceil(cx/2-tile_columns/2))
-        left=min(left,surface.columns-tile_columns-2)
-        x0,y0=left*2,below_row*4
+    centered_rows=_centered_canvas_rows(record,surface.columns,body_rows)
+    if centered_rows or below_rows>=5:
+        tile_columns=min(96,surface.columns-4,max(16,round(surface.columns*.90)))
+        tile_rows=centered_rows or min(18,below_rows)
+        left=(surface.columns-tile_columns)//2
+        top=(body_rows-tile_rows)//2 if centered_rows else below_row
+        x0,y0=left*2,top*4
         x1=x0+tile_columns*2-1;y1=y0+tile_rows*4-1
         edge=min(5,max(2,tile_rows//2))
     else:
@@ -437,6 +447,12 @@ def draw_keeper(record, columns, rows, status, *, mode='balanced', now=0,
     portrait=rows>=columns*.65
     scale=min(w/610,h/430)*(.96 if mode=='focus' or portrait else .74)
     cx,cy=w*.425,h*.465
+    canvas_rows=_centered_canvas_rows(record,columns,body_rows)
+    if canvas_rows:
+        # Reserve the middle for the drawing; fit Keeper completely above it.
+        keeper_height=max(1,(body_rows-canvas_rows)//2-2)*4
+        scale=min(w/610,keeper_height/430)*.90
+        cx,cy=w*.5,keeper_height*.5
     fold=.24 if state=='compacting' else 0
     breath=1+(math.sin(now*.6)*(.007+.015*life) if animate and not calm else 0)
     sx=scale*(1-fold)*breath

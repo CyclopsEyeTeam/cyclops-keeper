@@ -268,14 +268,18 @@ def _ascii_witness(event,kind):
 def render(snapshot, width, height, blink=False, stale=False, *, expression=None, colour=False, crest=False, **options):
     options['colour']=colour
     from expression import lane, crest_lane
-    # The crest and canvas are static authored/decorative surfaces. Status is
-    # always the final row; library defaults preserve historical fixtures.
+    # Crest movement is decorative; status remains the final row.
     top=[]
     if crest and width>=32 and height>=28:
         custom=expression.get('crest') if expression else None
+        current=_record(snapshot,stale)
+        quiet=(options.get('calm',False) or options.get('reduced_motion',False)
+               or not options.get('lively',True) or current['stale']
+               or current['state']=='unknown')
+        phase=0 if quiet else int(options.get('now',0)*4)%12
         top=crest_lane(json.dumps(custom,sort_keys=True) if custom else '',width,
                        colour,options.get('truecolour',False),options.get('calm',False),
-                       options.get('theme','classic')).splitlines()
+                       options.get('theme','classic'),phase).splitlines()
     bottom=bool(expression and any(expression.get(key) for key in ('caption','strokes','labels')))
     rows=min(24,max(6,height*2//5)) if bottom and width>=32 and height>=18 else 0
     body=_render_body(snapshot,width,height-rows-len(top),blink,stale,**options).splitlines()

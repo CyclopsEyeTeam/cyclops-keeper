@@ -28,7 +28,7 @@ TOOLS=[
           'text':{'type':'string','minLength':1,'maxLength':40,'description':'Original printable ASCII label.'},
           'at':{'type':'array','minItems':2,'maxItems':2,'items':{'type':'number','minimum':0,'maximum':1}},
           'ink':{'type':'string','enum':list(PALETTE)}},['text','at','ink'])}},[])},
- {'name':'crest','description':DESCRIPTION+' Set the static crest above Keeper without replacing the painting. Pick a constellation, moon or ribbon and an optional original phrase. It persists until replaced or cleared and hides in short panes.',
+ {'name':'crest','description':DESCRIPTION+' Set the expressive crest above Keeper without replacing the painting. Pick a constellation, moon or ribbon and an optional original phrase. The motif has gentle decorative motion, respecting quiet modes; the phrase stays still. It persists until replaced or cleared and hides in short panes.',
   'inputSchema':schema({'motif':{'type':'string','enum':['constellation','moon','ribbon'],'default':'constellation'},
       'phrase':{'type':'string','maxLength':48,'description':'Original printable ASCII phrase; empty removes the previous phrase.'}},[])},
  {'name':'clear','description':'Clear only this launch\'s authored caption, painting and custom crest. Leaves observed activity and subagent seats intact.',

@@ -87,9 +87,9 @@ def crest_value(value):
     return {'motif':motif,'phrase':phrase}
 
 
-@lru_cache(maxsize=4)
-def crest_lane(encoded,width,colour,truecolour,calm,theme='classic'):
-    """Four static rows of explicitly decorative or authored expression."""
+@lru_cache(maxsize=24)
+def crest_lane(encoded,width,colour,truecolour,calm,theme='classic',phase=0):
+    """Four rows of authored expression with bounded decorative motion."""
     from terminal_art import colour_codes
     value=json.loads(encoded) if encoded else {'motif':'constellation','phrase':''}
     motifs={
@@ -99,7 +99,18 @@ def crest_lane(encoded,width,colour,truecolour,calm,theme='classic'):
     }
     title='Keeper / crest - authored' if encoded else 'Keeper / decorative crest'
     lines=[title[:width].center(width)]
-    lines.extend(line[:width].center(width) for line in motifs[value['motif']])
+    # A twelve-step orbit, never a progress indicator. The authored phrase
+    # stays fixed while the constellation, moon or ribbon gently flexes.
+    orbit=(0,1,2,3,2,1,0,-1,-2,-3,-2,-1)[phase%12]
+    for index,line in enumerate(motifs[value['motif']]):
+        cells=list(line)
+        if phase:
+            for col,char in enumerate(cells):
+                if char=='*':cells[col]='+' if phase%3==0 else '*'
+            line=''.join(cells)
+        offset=orbit if index==0 else -orbit
+        padding=max(0,(width-len(line))//2+offset)
+        lines.append((' '*padding+line)[:width].ljust(width))
     phrase=value.get('phrase','')
     if len(phrase)>width:phrase=phrase[:width-3]+'...'
     lines.append(phrase.center(width))

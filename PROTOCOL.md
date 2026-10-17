@@ -68,7 +68,7 @@ control points. Up to six printable ASCII labels of 1–40 characters have a
 normalized anchor. Eight inks follow the active theme: glass, lavender, gold,
 chalk, mist, aqua, violet and rose. Replacing a painting replaces its labels;
 the caption is preserved. `clear` removes caption, strokes and labels.
-`crest` selects a static constellation, moon or ribbon with an optional printable
+`crest` selects a decorative constellation, moon or ribbon with an optional printable
 ASCII phrase of up to 48 characters. Its authored content has the same launch
 binding and remains until replaced or cleared. It cannot change activity state.
 Clear removes this custom crest too; the default decorative constellation remains.

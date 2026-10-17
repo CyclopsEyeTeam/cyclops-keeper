@@ -54,13 +54,22 @@ Example:
 Restart the Keeper-enabled Codex session after refreshing the plugin to load
 the expanded MCP schema. The cached canvas also includes the selected theme.
 
-The static crest occupies four rows above Keeper in panes of at least 32 columns
+The expressive crest occupies four rows above Keeper in panes of at least 32 columns
 and 28 rows. It defaults to a decorative constellation; `crest` replaces it with
 an authored `constellation`, `moon` or `ribbon`, plus an optional 0–48 character
 printable ASCII `phrase`. It persists until replaced or cleared. This tool does
 not change the bottom canvas or its caption. Smaller panes hide the crest.
 `clear` removes the custom crest along with the canvas, leaving the default
 decorative constellation. No phrase is generated automatically.
+
+The motif gently orbits at four steps per second while the phrase stays still.
+Calm, reduced motion, disabled lively motion, stale observations and unknown
+sessions freeze the motif. Motion is decorative, not an activity or progress
+signal; the assistant can deliberately change the motif and phrase with `crest`.
+In tall panes, the observed-event drawing sits in the middle of the available
+display with a smaller Keeper fitted above it. It expands to 90% of the pane
+(up to 96 columns and 18 rows), retaining open colored lines and subtle corner
+marks. Short panes retain their existing below-body or compact placement.
 
 The existing event-keyed subagent satellites are the seats. No new synthetic
 seat records were added. Parallel starts, late returns and out-of-order returns
