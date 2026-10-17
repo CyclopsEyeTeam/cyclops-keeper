@@ -1,6 +1,15 @@
 # Keeper in Studio
 
-This local integration is based on public commit 25ca154. The Studio-owned source checkout lives at `presences/keeper/mod`; run `bash install.sh` there to refresh Codex and its shell wrapper. Start a new Codex terminal in Studio to load it. Existing sessions are not restarted.
+This repository contains the terminal mod only, including its optional activity-feed adapter. It can live anywhere; when installed in Studio, its checkout is `presences/keeper/mod`. The sibling renderer, Studio registry and Studio application are outside this Git repository.
+
+To update the terminal mod from this checkout:
+
+```sh
+git pull --ff-only
+bash install.sh
+```
+
+Use `main` tracking `origin/main`. These commands update the mod and its installed Codex copy; they do not update Studio or its renderer. Start a new Codex terminal to load the refreshed plugin. Existing sessions are not restarted.
 
 Studio supplies `CYCLOPS_SESSION_ID`. Only a valid supplied session ID enables the optional feed under `$XDG_STATE_HOME/cyclops-presence/<id>/keeper` (default `~/.local/state`). `CYCLOPS_PRESENCE_ROOT` is a host/test override. No Studio ID means no feed. Files contain observed event types, timestamps, sequence numbers, phases, bounded relations and hashed correlation keys. Prompts, commands, paths, tool results and raw Codex session identifiers are excluded.
 
@@ -10,4 +19,4 @@ The former no-external-write test now checks an invalid Studio ID; dedicated tes
 
 The renderer lives separately in `../render`, preserves the accepted body and adds a restrained woven crest. No renderer timer manufactures activity. Reduced motion and disconnected states freeze the ornament.
 
-Version remains 0.5.0 with Unreleased additions. The historical resource HOLD remains unchanged. Automatic updates are disabled for this local integration; upstream publication is a separate action. The previous source folder is retained.
+Version remains 0.5.0 with Unreleased additions. The historical resource HOLD remains unchanged. Studio automatic updates are configured separately by Studio and are not changed by this repository. The previous source folder can remain in place.
