@@ -221,6 +221,7 @@ class RelationLayerCache:
 
 
 ACTIVE_RELATION_LAYER_CACHE=RelationLayerCache()
+WITNESS_LAYER_CACHE=RelationLayerCache(maxsize=4)
 
 
 def life_amount(record, lively, calm, reduced_motion):
@@ -264,15 +265,28 @@ def _witness_canvas(surface, record, *, body_rows, cx, cy, sx, sy, now, calm,
         x0,y0=2,max(4,min((body_rows-4)*4,round(body_rows*.16)*4))
         x1=x0+tile_columns*2-1;y1=y0+11
         edge=2
+    age=now-event['at']
+    animate=(not calm and not reduced_motion and not frozen and lively and 0<=age<.72)
+    reveal=max(.05,min(1,age/.72)) if animate else 1
+    if animate:
+        _paint_witness(surface,event,x0,y0,x1,y1,edge,reveal)
+    else:
+        # Integer tile bounds, not the breathing body's floating coordinates.
+        # Only public event class/kind affect the settled painting.
+        key=(surface.columns,surface.rows,x0,y0,x1,y1,edge,event['event'],event.get('kind'))
+        layer,occupied=WITNESS_LAYER_CACHE.get_or_create(key,lambda: _relation_surface(
+            surface.columns,surface.rows,
+            lambda target: _paint_witness(target,event,x0,y0,x1,y1,edge,1)))
+        surface.overlay(layer,occupied)
+
+
+def _paint_witness(surface,event,x0,y0,x1,y1,edge,reveal):
     for a,b in (((x0,y0),(x0+edge,y0)),((x0,y0),(x0,y0+edge)),
                 ((x1-edge,y0),(x1,y0)),((x1,y0),(x1,y0+edge)),
                 ((x0,y1-edge),(x0,y1)),((x0,y1),(x0+edge,y1)),
                 ((x1-edge,y1),(x1,y1)),((x1,y1-edge),(x1,y1))):
         surface.line(a,b,0,0)
 
-    age=now-event['at']
-    animate=(not calm and not reduced_motion and not frozen and lively and 0<=age<.72)
-    reveal=max(.05,min(1,age/.72)) if animate else 1
     ix0,ix1=x0+2,x1-2;iy0,iy1=y0+2,y1-2
 
     def p(u,v):

@@ -109,6 +109,37 @@ def _caption_phrase(record,width,transition):
     thread={'inspect':('looking','Look'),'change':('making','Make'),
             'execute':('ground','Ground'),'service':('far','Far'),
             'other':('work','Work')}.get(kind,('work','Work'))
+    # Continuity belongs to the bounded observed trail, never a private story.
+    if transition and not compact:
+        history=[item for item in record['transitions']
+                 if item['sequence']<transition['sequence']]
+        boundary=max((i for i,item in enumerate(history)
+                      if item['event'] in {'SessionStart','UserPromptSubmit'}),default=-1)
+        recent=history[boundary+1:]
+        previous=history[-1]['event'] if history else None
+        if event=='UserPromptSubmit' and previous=='Interrupt':
+            return 'A fresh line meets the held thread.'
+        if event=='PreToolUse':
+            starts=[item for item in recent if item['event']=='PreToolUse']
+            if starts and starts[-1].get('kind')!=kind and kind in TOOL_KINDS:
+                return f'I turn a {thread[0]} line outward.'
+            if len(record['active_tools'])>1:
+                return f'Another {thread[0]} line; its own tether.'
+            if starts:
+                return (f'I draw another {thread[0]} line.' if len(starts)%2 else
+                        f'A {thread[0]} thread reaches out again.')
+        if event=='PostToolUse' and record['active_tools']:
+            return f'One {thread[0]} line back; others stay out.'
+        if event=='PostToolUse' and any(item['event']=='PostToolUse' for item in recent):
+            return f'The {thread[0]} thread folds back in.'
+        if event=='SubagentStart' and len(record['active_subagents'])>1:
+            return 'Another side thread; a place of its own.'
+        if event=='SubagentStop' and record['active_subagents']:
+            return 'One side thread rests; others stay open.'
+        if event=='PermissionRequest' and (record['active_tools'] or record['active_subagents']):
+            return 'At the gate, with open threads held.'
+        if event=='Stop' and (record['active_tools'] or record['active_subagents']):
+            return 'The turn rests; open threads stay marked.'
     if event in {'PreToolUse','PostToolUse','PermissionRequest'}:
         adjective,short=thread
         if event=='PreToolUse':
@@ -542,9 +573,17 @@ class RenderCache:
     def frame(self,record,width,height,**options):
         normalized=_record(record,options.get('stale',False))
         frozen=options.get('reduced_motion',False) or normalized['stale'] or normalized['state']=='unknown'
+        # Calm suppresses ambient motion but keeps short observed gestures.
+        # Reuse only after every recorded gesture settles; a future timestamp
+        # must not get frozen before its gesture can begin.
+        now=options.get('now',0)
+        settled_calm=(options.get('calm',False) and options.get('unicode',True)
+                      and detail(width,height) in {'full','compact'}
+                      and all(now-event['at']>=.8 for event in normalized['transitions']))
+        frozen=frozen or settled_calm
         key=None
         if frozen:
-            settings={name:value for name,value in options.items() if name not in {'now','blink'}}
+            settings={name:value for name,value in options.items() if name not in ({'now'} if settled_calm else {'now','blink'})}
             key=(json.dumps(normalized,sort_keys=True,separators=(',',':')),width,height,json.dumps(settings,sort_keys=True))
             if key==self.key:return self.body
         body=render(record,width,height,**options)
