@@ -87,9 +87,26 @@ def crest_value(value):
     return {'motif':motif,'phrase':phrase}
 
 
-@lru_cache(maxsize=24)
-def crest_lane(encoded,width,colour,truecolour,calm,theme='classic',phase=0):
+def _woven_crest(width,colour,truecolour,calm,theme,phase):
+    """Two open ribbons and one orbiting bead: decoration, never work progress."""
+    from terminal_art import Surface
+    surface=Surface(width,2);cx=width;cy=3.5
+    span=min(26,max(8,(width-8)*.5))
+    # Deliberately open crossings leave air around the luminous thread.
+    surface.curve([(cx-span,5.7),(cx-span*.55,-.2),(cx+span*.5,7.2),(cx+span,1.3)],2,0)
+    surface.curve([(cx-span*.85,1.2),(cx-span*.3,7.7),(cx+span*.4,-.5),(cx+span*.85,5.8)],1,0)
+    theta=(phase%24)*math.tau/24
+    x=cx+math.cos(theta)*span;y=cy+math.sin(theta)*2.7
+    surface.point(x,y,4,3);surface.point(x+1,y,5,4)
+    surface.point(cx-span-8,2,0,0);surface.point(cx+span+8,5,0,0)
+    return '\n'.join(surface.frame('',colour=colour,truecolour=truecolour,calm=calm,theme=theme).splitlines()[:2])
+
+
+@lru_cache(maxsize=96)
+def crest_lane(encoded,width,colour,truecolour,calm,theme='classic',phase=0,unicode=True):
     """Compact constellation with bounded decorative motion and optional phrase."""
+    if not encoded and unicode:
+        return _woven_crest(width,colour,truecolour,calm,theme,phase)
     from terminal_art import colour_codes
     value=json.loads(encoded) if encoded else {'motif':'constellation','phrase':''}
     motifs={

@@ -278,10 +278,10 @@ def render(snapshot, width, height, blink=False, stale=False, *, expression=None
         quiet=(options.get('calm',False) or options.get('reduced_motion',False)
                or not options.get('lively',True) or current['stale']
                or current['state']=='unknown')
-        phase=0 if quiet else int(options.get('now',0)*4)%12
+        phase=0 if quiet else int(options.get('now',0)*3)%24
         top=crest_lane(json.dumps(custom,sort_keys=True) if custom else '',width,
                        colour,options.get('truecolour',False),options.get('calm',False),
-                       options.get('theme','classic'),phase).splitlines()
+                       options.get('theme','classic'),phase,options.get('unicode',True)).splitlines()
     height-=len(overhead)
     bottom=bool(overhead or (expression and any(expression.get(key) for key in ('caption','strokes','labels'))))
     rows=min(24,max(6,height//3 if overhead else height*2//5)) if bottom and width>=32 and height>=18 else 0

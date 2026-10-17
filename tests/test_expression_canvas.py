@@ -24,6 +24,17 @@ class ExpressionCanvas(unittest.TestCase):
         for now in (0,1,2,3):
             self.assertEqual(set(map(len,top(now))),{54})
 
+    def test_default_crest_is_open_woven_and_ascii_safe(self):
+        phases=[expression.crest_lane('',70,False,False,False,'moonlight',phase) for phase in range(24)]
+        self.assertGreater(len(set(phases)),12)
+        for frame in phases:
+            self.assertEqual(len(frame.splitlines()),2)
+            self.assertEqual(set(map(len,frame.splitlines())),{70})
+            self.assertTrue(any(0x2800<ord(c)<=0x28ff for c in frame))
+            self.assertNotIn(chr(0x28ff),frame)
+        ascii_frame=terminal.render('working',70,52,crest=True,unicode=False,now=1)
+        self.assertTrue(ascii_frame.isascii())
+
     def test_event_panel_is_centered_wide_and_open(self):
         from terminal_art import Surface, _witness_canvas
         surface=Surface(54,60)

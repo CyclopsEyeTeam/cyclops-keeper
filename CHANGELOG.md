@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Replace the default text constellation with a compact woven-light crest and an eight-second travelling bead. Preserve custom crests, ASCII rendering and quiet-mode freezing; artwork choices remain independent.
+
+
 - Remove live canvas headings and idle toolbar spacer rows; combine activity wording with attachment status and reserve a larger sketch area. Fresh sessions get a read-only outline of the latest saved Keeper painting until an authored sketch arrives.
 - Add attachment-bound Free/Work-inspired painting choice and `painting_brief` MCP. This guides explicit assistant composition; it does not invoke a model automatically.
 - Truest quantizes after resizing, before captions. Raster-backed SVG uses an sRGB discrete filter on its painting group and native caption text outside. Levels: 6, 8, 16 (default), 32, 64 or 256 (off). No invented shadows or depth pass.
